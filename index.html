@@ -89,7 +89,7 @@ const CONFIG={
         BANK_LERP_FACTOR: 0.05
     },
     effects:{
-        BLOOM_STRENGTH: 1.5,
+        BLOOM_STRENGTH: 2.0,
         RAIN_COUNT: 800,
         RAIN_SPEED:330,
         RAIN_PARTICLE_SIZE: 0.08,
@@ -308,7 +308,7 @@ function addNeons(parent,w,d,h_geom){
     for(let i=0;i<n;i++){
         const face=Math.floor(Math.random()*4), nH_sign=Math.random()*7+2, nW_sign=(face<2?w:d)*(Math.random()*0.6+0.2);
         const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-        const intensityFactor = 0.7 + Math.random() * 0.7;
+        const intensityFactor = 1.2 + Math.random() * 1.0;
         const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
         const signMaterial = new THREE.MeshBasicMaterial({
             color: finalNeonColor,
