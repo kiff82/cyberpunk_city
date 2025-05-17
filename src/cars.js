@@ -2,7 +2,8 @@ import * as THREE from 'three';
 
 export function createSimpleCar() {
     const group = new THREE.Group();
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff4444, metalness: 0.3, roughness: 0.6 });
+    // Car body should be grey instead of brightly coloured
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.3, roughness: 0.6 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 8), bodyMat);
     body.position.y = 2;
     group.add(body);

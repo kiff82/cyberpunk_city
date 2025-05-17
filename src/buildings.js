@@ -2,7 +2,8 @@ import * as THREE from 'three';
 
 export function createSimpleBuilding() {
     const material = new THREE.MeshStandardMaterial({
-        color: 0x333344,
+        // Use a neutral grey so demo buildings are not brightly colored
+        color: 0x666666,
         roughness: 0.8,
         metalness: 0.2
     });
