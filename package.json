@@ -1,0 +1,11 @@
+{
+  "name": "cyberpunk_city",
+  "version": "1.0.0",
+  "description": "Cyberpunk City Three.js scene",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}
