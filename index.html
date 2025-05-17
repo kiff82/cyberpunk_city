@@ -35,7 +35,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 /* ---------- CONFIG ---------- */
 const CONFIG={
     city:{
-        NUM_BUILDINGS:420,
+        NUM_BUILDINGS:300,
         CITY_RADIUS:700,
         CORRIDOR_WIDTH:120,
         BUILDING_MIN_Y_OFFSET: 80,
@@ -46,21 +46,23 @@ const CONFIG={
             { name: "CoatedPanel", baseColor: 0x181818, roughness: 0.4, metalness: 0.5 },
             { name: "HeavyDutyStructure", baseColor: 0x202228, roughness: 0.85, metalness: 0.7 }
         ],
-        GREEBLE_DENSITY: 0.1
+        GREEBLE_DENSITY: 0.1,
+        DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333],
+        DISTRICT_LENGTH: 800
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
-        NUM_CARS:140,
+        NUM_CARS:100,
         SPEED_MIN:30,
         SPEED_MAX:90,
         TRUCK_PROBABILITY: 0.15,
-        CAR_TYPES: ['normal', 'van', 'sporty', 'bus', 'hover_low'],
+        CAR_TYPES: ['normal', 'van', 'sporty', 'bus', 'hover_low', 'suv', 'police'],
         Y_SPREAD_AROUND_CAMERA: 40,
         LANE_VERTICAL_SEPARATION: 60,
         LANE_Y_SPREAD_FACTOR: 0.4
     },
     trafficX: { // New: Configuration for X-axis traffic
         NUM_JUNCTIONS: 3,
-        CARS_PER_JUNCTION: 15,
+        CARS_PER_JUNCTION: 10,
         JUNCTION_Z_OFFSETS: [-200, -450, -700], // Z distance from camera for each junction layer
         JUNCTION_X_TRAVEL_WIDTH: 1000,      // How far cars travel left/right before wrapping
         JUNCTION_Z_DEPTH_VARIATION: 30,     // Small random Z spread within a junction layer
@@ -68,7 +70,7 @@ const CONFIG={
         SPEED_MIN: 35,
         SPEED_MAX: 80,
         TRUCK_PROBABILITY: 0.1,
-        CAR_TYPES: ['normal', 'van', 'sporty', 'hover_low'], // Can be same or different from Z-axis
+        CAR_TYPES: ['normal', 'van', 'sporty', 'hover_low', 'suv', 'police'], // Can be same or different from Z-axis
 
         BASE_Y_OFFSET_FROM_Z_TRAFFIC_LOWEST: -70, // Base Y of X-traffic relative to the lowest Z-traffic lane. Negative = underneath.
         LANE_VERTICAL_SEPARATION: 30,
@@ -188,20 +190,29 @@ function addGreebles(mesh, segmentWidth, segmentDepth, segmentHeight) {
 }
 function createBuilding(zPos=null){
     const g = new THREE.Group();
+    const buildingZ = zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH);
+    const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
+    const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
     const segments = Math.floor(Math.random()*4)+2;
     let currW = Math.random()*70+30;
     let currD = Math.random()*70+30;
     let yCursor = 0;
     let maxW = 0, maxD = 0;
     let baseSegment = null;
-    const buildingStyle = Math.random() < 0.3 ? 'tapered_cylinder' : (Math.random() < 0.6 ? 'mixed_segments' : 'stacked_boxes');
+    const rStyle = Math.random();
+    let buildingStyle;
+    if(rStyle < 0.25) buildingStyle='tapered_cylinder';
+    else if(rStyle < 0.5) buildingStyle='mixed_segments';
+    else if(rStyle < 0.75) buildingStyle='stacked_boxes';
+    else buildingStyle='pyramid';
     for(let s=0; s<segments; s++){
         const h = Math.random()*180+50;
         let segmentMesh;
         let segmentParams = { w: currW, h: h, d: currD };
         const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
+        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.7 + Math.random()*0.6);
         const buildingMaterial = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(materialPreset.baseColor).multiplyScalar(0.7 + Math.random()*0.6),
+            color: baseColor.clone().multiply(districtTint),
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
             metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
         });
@@ -215,19 +226,29 @@ function createBuilding(zPos=null){
                 const radius = Math.min(currW, currD) / 2 * (0.8 + Math.random() * 0.2);
                 segmentMesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * (0.7 + Math.random()*0.3), h, 12 + Math.floor(Math.random()*12)), buildingMaterial);
                 segmentParams.w = radius * 2; segmentParams.d = radius * 2;
+            } else if (buildingStyle === 'pyramid' && s === segments - 1) {
+                segmentMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.min(currW, currD)/2, h, 4), buildingMaterial);
+                segmentParams.w = currW; segmentParams.d = currD;
             } else {
                 segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
             }
         }
         segmentMesh.position.y = yCursor + h/2;
+        segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(s===0) baseSegment = segmentMesh;
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
              addGreebles(segmentMesh, segmentParams.w, segmentParams.d, h);
         }
         yCursor += h;
-        currW *= (0.6 + Math.random()*0.3);
-        currD *= (0.6 + Math.random()*0.3);
+        if(buildingStyle === 'pyramid'){
+            const shrink = 0.8;
+            currW *= shrink;
+            currD *= shrink;
+        } else {
+            currW *= (0.6 + Math.random()*0.3);
+            currD *= (0.6 + Math.random()*0.3);
+        }
         maxW = Math.max(maxW, segmentParams.w);
         maxD = Math.max(maxD, segmentParams.d);
     }
@@ -258,10 +279,11 @@ function createBuilding(zPos=null){
     g.position.set(
         side*(minX+Math.random()*(CONFIG.city.CITY_RADIUS-minX)),
         baseOffsetY,
-        zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH)
+        buildingZ
     );
     g.userData.base={w:maxW,d:maxD,h:yCursor};
     g.userData.baseSegment = baseSegment;
+    g.userData.districtIndex = districtIndex;
     return g;
 }
 function addNeons(parent,w,d,h_geom){
@@ -339,6 +361,16 @@ function _createCarVisuals(type = 'normal') {
             const topBeacon = new THREE.Mesh(beaconGeo, beaconMat);
             topBeacon.position.y = bh/2 + 0.1; g.add(topBeacon);
             break;
+        case 'suv':
+            bw = Math.random() * 2.5 + 3.5; bh = Math.random() * 1.5 + 1.8; bl = Math.random() * 4.5 + 6.0;
+            bodyColor.setHSL(Math.random()*0.1 + 0.05, Math.random()*0.2 + 0.2, Math.random()*0.2 + 0.2);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.5, metalness: 0.6 });
+            break;
+        case 'police':
+            bw = Math.random() * 2.2 + 3.2; bh = Math.random() * 1.2 + 1.4; bl = Math.random() * 4.5 + 6.0;
+            bodyColor.setRGB(0.05,0.05,0.05);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4, metalness: 0.9 });
+            break;
         case 'normal': default:
             bw = Math.random() * 2.5 + 3; bh = Math.random() * 1.2 + 1; bl = Math.random() * 4.5 + 5.5;
             bodyColor.setRGB(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2); // These are also quite dark
@@ -348,6 +380,17 @@ function _createCarVisuals(type = 'normal') {
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bl), carMaterial);
     g.add(body);
+
+    if(type === 'police') {
+        const sirenGeo = new THREE.BoxGeometry(bw*0.4, bh*0.15, 0.6);
+        const sirenRed = new THREE.MeshBasicMaterial({color:0xff0000, fog:false});
+        const sirenBlue = new THREE.MeshBasicMaterial({color:0x0000ff, fog:false});
+        const left = new THREE.Mesh(sirenGeo, sirenRed);
+        const right = new THREE.Mesh(sirenGeo, sirenBlue);
+        left.position.set(-bw*0.25, bh/2 + 0.1, 0);
+        right.position.set(bw*0.25, bh/2 + 0.1, 0);
+        g.add(left); g.add(right);
+    }
 
     const headlightSizeFactor = (type === 'bus' || type === 'van') ? 0.6 : 0.5;
     const taillightSizeFactor = (type === 'bus' || type === 'van') ? 0.7 : 0.6;
@@ -534,7 +577,7 @@ function createBillboard(zPos=null){
     plane.rotation.y=side>0?Math.PI/2:-Math.PI/2;
     return plane;
 }
-function createBillboards(){for(let i=0;i<60;i++){const bb=createBillboard();scene.add(bb);billboards.push(bb);}}
+function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();scene.add(bb);billboards.push(bb);}}
 function createLargeEmissiveScreen() {
     const screenWidth = 200 + Math.random() * 100;
     const screenHeight = 300 + Math.random() * 150;
@@ -589,6 +632,16 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
+
+            const districtIndex = Math.floor(Math.abs(b.position.z)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
+            const tint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
+            b.traverse(child => {
+                if(child.material && child.material.color && child.userData && child.userData.baseColor){
+                    child.material.color.copy(child.userData.baseColor).multiply(tint);
+                }
+            });
+            b.userData.districtIndex = districtIndex;
+
             if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
                 addNeons(b.userData.baseSegment,
                          b.userData.baseSegment.geometry.parameters.width,
