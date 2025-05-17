@@ -7,20 +7,6 @@ This project renders a Three.js scene with a drone flying through a neon citysca
 Modern browsers require ES modules to be served over HTTP. If you open `index.html` directly with the `file://` protocol, the import map in the HTML file will not resolve the modules and the page will fail to load. To view the project correctly, serve the directory through a local web server and then visit the page via `http://localhost`.
 The scene pulls Three.js modules from the CDN at [unpkg.com](https://unpkg.com/), so an active internet connection is required. If you need to run the project completely offline, download those modules and update the import paths accordingly.
 
-### GitHub Pages
-
-You can host this project on GitHub Pages. Commit the files to a repository and enable Pages in the repository settings, using the `main` branch and `/` root. It may take a few minutes for the page to become available at `https://<username>.github.io/<repo>/`.
-
-If the scene fails to load due to memory constraints, lower the object counts defined near the top of `index.html`. The defaults are tuned for lightweight hosting:
-
-```
-city.NUM_BUILDINGS = 150
-trafficZ.NUM_CARS  = 50
-trafficX.CARS_PER_JUNCTION = 5
-effects.RAIN_COUNT = 400
-```
-
-Decrease these values further if you see "Out of Memory" errors.
 
 ### Using Python
 
@@ -46,4 +32,14 @@ The first time you run this command, install dependencies with `npm install`.
 ## Development
 
 All code is contained in `index.html` and the `src/` directory. No build step is required.
+
+## Running on GitHub Pages
+
+The project works when hosted from any subdirectory, so you can serve it via GitHub Pages. Publish the repository (or a `gh-pages` branch) using GitHub Pages and visit:
+
+```
+https://kiff82.github.io/cyberpunk_city/
+```
+
+`index.html` and the `src/` folder will load from that path. An internet connection is still required for the Three.js modules pulled from the CDN.
 
