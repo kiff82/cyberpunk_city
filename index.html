@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cyberpunk City Drone Flight – v5.8.2: Tiered & X-Axis Traffic (Brighter)</title>
     <style>
-        :root { --bg:#000; }
+        :root { --bg:#080808; } /* Slightly lighter background */
         body{ margin:0; overflow:hidden; background:var(--bg);}
         canvas{ display:block; }
     </style>
@@ -130,7 +130,7 @@ function init(){
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
     renderer.setSize(window.innerWidth,window.innerHeight);
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4; // MODIFIED from 1.3
+    renderer.toneMappingExposure = 1.6; // Brightened overall exposure
     renderer.outputEncoding=THREE.sRGBEncoding;
     document.body.appendChild(renderer.domElement);
 
@@ -144,8 +144,8 @@ function init(){
     );
     composer.addPass(bloomPass);
 
-    scene.add(new THREE.AmbientLight(0x404050, 0.7)); // MODIFIED from 0x333344, 0.5
-    const dir=new THREE.DirectionalLight(0xffaa77, 0.3); // MODIFIED from 0xff9966, 0.2
+    scene.add(new THREE.AmbientLight(0x505060, 1.0)); // Increased intensity and slightly lighter color
+    const dir=new THREE.DirectionalLight(0xffaa77, 0.5); // Increased intensity
     dir.position.set(0, -0.5, 0.5);
     scene.add(dir);
 
@@ -210,7 +210,7 @@ function createBuilding(zPos=null){
         let segmentMesh;
         let segmentParams = { w: currW, h: h, d: currD };
         const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
-        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.7 + Math.random()*0.6);
+        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.9 + Math.random()*0.7); // Slightly brighter buildings
         const buildingMaterial = new THREE.MeshStandardMaterial({
             color: baseColor.clone().multiply(districtTint),
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
@@ -273,6 +273,17 @@ function createBuilding(zPos=null){
     if (baseSegment) {
         addNeons(baseSegment, baseSegment.geometry.parameters.width, baseSegment.geometry.parameters.depth, baseSegment.geometry.parameters.height);
     }
+    // Extend the building downward so the ground is never visible
+    const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
+    const foundationGeo = new THREE.BoxGeometry(maxW * 0.9, foundationHeight, maxD * 0.9);
+    const foundationMat = new THREE.MeshStandardMaterial({
+        color: baseSegment ? baseSegment.material.color.clone() : new THREE.Color(0x333333),
+        roughness: 0.8,
+        metalness: 0.3
+    });
+    const foundation = new THREE.Mesh(foundationGeo, foundationMat);
+    foundation.position.y = -foundationHeight / 2;
+    g.add(foundation);
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
