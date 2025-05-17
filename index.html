@@ -158,12 +158,20 @@ function init(){
     createLargeEmissiveScreen();
     createRain();
 
-    const extraBuilding = createSimpleBuilding();
+    const extraBuilding = createSimpleBuilding({
+        color: 0x222233,
+        roughness: 0.85,
+        metalness: 0.6
+    });
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
     scene.add(extraBuilding);
     buildings.push(extraBuilding);
 
-    const demoCar = createSimpleCar();
+    const demoCar = createSimpleCar({
+        bodyColor: 0x222222,
+        roughness: 0.6,
+        metalness: 0.7
+    });
     demoCar.position.set(0, 5, -50);
     scene.add(demoCar);
 
