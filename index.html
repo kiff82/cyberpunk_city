@@ -219,9 +219,10 @@ function createBuilding(zPos=null){
         let segmentMesh;
         let segmentParams = { w: currW, h: h, d: currD };
         const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
-        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.9 + Math.random()*0.7); // Slightly brighter buildings
+        // Force building segments to a neutral grey rather than district tinted colours
+        const baseColor = new THREE.Color(0x666666);
         const buildingMaterial = new THREE.MeshStandardMaterial({
-            color: baseColor.clone().multiply(districtTint),
+            color: baseColor,
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
             metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
         });
@@ -398,6 +399,11 @@ function _createCarVisuals(type = 'normal') {
             break;
     }
 
+    // Override body colour with neutral grey so cars aren't brightly coloured
+    if(carMaterial && carMaterial.color) {
+        carMaterial.color.set(0x666666);
+    }
+
     const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bl), carMaterial);
     g.add(body);
 
@@ -446,6 +452,9 @@ function _createTruckVisuals() {
     const trailerColor = new THREE.Color().setHSL(Math.random(), Math.random()*0.1, Math.random()*0.3+0.2);
     const cabMat = new THREE.MeshStandardMaterial({ color: cabColor, roughness: 0.6, metalness: 0.5 });
     const trailerMat = new THREE.MeshStandardMaterial({ color: trailerColor, roughness: 0.8, metalness: 0.3 });
+    // Trucks should also have neutral grey colouring
+    cabMat.color.set(0x666666);
+    trailerMat.color.set(0x666666);
     const cab = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), cabMat);
     cab.position.z = -(trailerL / 2 + cabL / 2) * 0.7; g.add(cab);
     const trailer = new THREE.Mesh(new THREE.BoxGeometry(trailerW, trailerH, trailerL), trailerMat);
@@ -654,10 +663,10 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
 
             const districtIndex = Math.floor(Math.abs(b.position.z)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
-            const tint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
+            // Buildings remain grey when recycled; no district tint applied
             b.traverse(child => {
                 if(child.material && child.material.color && child.userData && child.userData.baseColor){
-                    child.material.color.copy(child.userData.baseColor).multiply(tint);
+                    child.material.color.copy(child.userData.baseColor);
                 }
             });
             b.userData.districtIndex = districtIndex;
