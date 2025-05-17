@@ -32,7 +32,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding } from "./src/buildings.js";
+import { buildCyberpunkSkyscraper } from "./src/CyberpunkSkyscraper.js";
 import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
@@ -113,7 +113,7 @@ const CONFIG={
 
 /* ---------- GLOBALS ---------- */
 let scene,camera,renderer,composer,clock;
-const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
+const buildings=[], buildingUpdaters=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 let rain, rainPositions;
 let currentTrackedCarX = 0;
 
@@ -158,14 +158,11 @@ function init(){
     createLargeEmissiveScreen();
     createRain();
 
-    const extraBuilding = createSimpleBuilding({
-        color: 0x222233,
-        roughness: 0.85,
-        metalness: 0.6
-    });
+    const { building: extraBuilding, update: extraUpdate } = buildCyberpunkSkyscraper({ floors: 60 });
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
     scene.add(extraBuilding);
     buildings.push(extraBuilding);
+    buildingUpdaters.push(extraUpdate);
 
     const demoCar = createSimpleCar({
         bodyColor: 0x222222,
@@ -206,114 +203,31 @@ function addGreebles(mesh, segmentWidth, segmentDepth, segmentHeight) {
     }
 }
 function createBuilding(zPos=null){
-    const g = new THREE.Group();
-    const buildingZ = zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH);
+    const buildingZ = zPos ?? (camera.position.z - Math.random()*CONFIG.misc.VISIBLE_DEPTH);
     const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
-    const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
-    const segments = Math.floor(Math.random()*4)+2;
-    let currW = Math.random()*70+30;
-    let currD = Math.random()*70+30;
-    let yCursor = 0;
-    let maxW = 0, maxD = 0;
-    let baseSegment = null;
-    const rStyle = Math.random();
-    let buildingStyle;
-    if(rStyle < 0.25) buildingStyle='tapered_cylinder';
-    else if(rStyle < 0.5) buildingStyle='mixed_segments';
-    else if(rStyle < 0.75) buildingStyle='stacked_boxes';
-    else buildingStyle='pyramid';
-    for(let s=0; s<segments; s++){
-        const h = Math.random()*180+50;
-        let segmentMesh;
-        let segmentParams = { w: currW, h: h, d: currD };
-        const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
-        // Force building segments to a neutral grey rather than district tinted colours
-        const baseColor = new THREE.Color(0x666666);
-        const buildingMaterial = new THREE.MeshStandardMaterial({
-            color: baseColor,
-            roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
-            metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
-        });
-        if (s === 0) {
-            segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
-        } else {
-            let useCylinder = false;
-            if (buildingStyle === 'tapered_cylinder') useCylinder = true;
-            else if (buildingStyle === 'mixed_segments') useCylinder = Math.random() < 0.5;
-            if (useCylinder && currW > 5 && currD > 5) {
-                const radius = Math.min(currW, currD) / 2 * (0.8 + Math.random() * 0.2);
-                segmentMesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * (0.7 + Math.random()*0.3), h, 12 + Math.floor(Math.random()*12)), buildingMaterial);
-                segmentParams.w = radius * 2; segmentParams.d = radius * 2;
-            } else if (buildingStyle === 'pyramid' && s === segments - 1) {
-                segmentMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.min(currW, currD)/2, h, 4), buildingMaterial);
-                segmentParams.w = currW; segmentParams.d = currD;
-            } else {
-                segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
-            }
-        }
-        segmentMesh.position.y = yCursor + h/2;
-        segmentMesh.userData.baseColor = baseColor.clone();
-        g.add(segmentMesh);
-        if(s===0) baseSegment = segmentMesh;
-        if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
-             addGreebles(segmentMesh, segmentParams.w, segmentParams.d, h);
-        }
-        yCursor += h;
-        if(buildingStyle === 'pyramid'){
-            const shrink = 0.8;
-            currW *= shrink;
-            currD *= shrink;
-        } else {
-            currW *= (0.6 + Math.random()*0.3);
-            currD *= (0.6 + Math.random()*0.3);
-        }
-        maxW = Math.max(maxW, segmentParams.w);
-        maxD = Math.max(maxD, segmentParams.d);
-    }
-    if(Math.random() < 0.4){
-        const antH = Math.random()*50+25;
-        const antennaType = Math.random();
-        let antenna;
-        if (antennaType < 0.6) {
-             antenna = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.8,0.8,antH,8),
-                new THREE.MeshStandardMaterial({color:0x777788,roughness:0.3,metalness:0.9})
-            );
-        } else {
-            antenna = new THREE.Mesh(
-                new THREE.CylinderGeometry(Math.random()*2+1, Math.random()*1.5+0.5 ,antH, Math.random() < 0.5 ? 4 : 6),
-                new THREE.MeshStandardMaterial({color:0x555566,roughness:0.6,metalness:0.7})
-            );
-        }
-        antenna.position.y = yCursor + antH/2;
-        g.add(antenna);
-    }
-    if (baseSegment) {
-        addNeons(baseSegment, baseSegment.geometry.parameters.width, baseSegment.geometry.parameters.depth, baseSegment.geometry.parameters.height);
-    }
-    // Extend the building downward so the ground is never visible
-    const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
-    const foundationGeo = new THREE.BoxGeometry(maxW * 0.9, foundationHeight, maxD * 0.9);
-    const foundationMat = new THREE.MeshStandardMaterial({
-        color: baseSegment ? baseSegment.material.color.clone() : new THREE.Color(0x333333),
-        roughness: 0.8,
-        metalness: 0.3
-    });
-    const foundation = new THREE.Mesh(foundationGeo, foundationMat);
-    foundation.position.y = -foundationHeight / 2;
-    g.add(foundation);
-    const side=Math.random()<0.5?-1:1;
-    const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
+
+    const floors = Math.floor(Math.random()*40)+60;
+    const floorHeight = 9;
+    const width = Math.random()*60 + 40;
+    const depth = Math.random()*60 + 40;
+
+    const { building, update } = buildCyberpunkSkyscraper({ floors, floorHeight, width, depth });
+
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const minX = CONFIG.city.CORRIDOR_WIDTH/2 + width/2 + 6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
-    g.position.set(
-        side*(minX+Math.random()*(CONFIG.city.CITY_RADIUS-minX)),
+    building.position.set(
+        side*(minX + Math.random()*(CONFIG.city.CITY_RADIUS - minX)),
         baseOffsetY,
         buildingZ
     );
-    g.userData.base={w:maxW,d:maxD,h:yCursor};
-    g.userData.baseSegment = baseSegment;
-    g.userData.districtIndex = districtIndex;
-    return g;
+
+    building.userData.base = { w: width, d: depth, h: floors*floorHeight };
+    building.userData.baseSegment = null;
+    building.userData.districtIndex = districtIndex;
+
+    buildingUpdaters.push(update);
+    return building;
 }
 function addNeons(parent,w,d,h_geom){
     while(parent.children.length > 0){
@@ -745,6 +659,8 @@ function animate(){
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
     const t = clock.getElapsedTime();
+
+    buildingUpdaters.forEach(u => u(delta));
 
     camera.position.z -= CONFIG.camera.SPEED * delta;
 
