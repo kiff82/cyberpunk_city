@@ -90,7 +90,7 @@ const CONFIG={
         BANK_LERP_FACTOR: 0.05
     },
     effects:{
-        BLOOM_STRENGTH: 2.0,
+        BLOOM_STRENGTH: 1.5,
         RAIN_COUNT: 800,
         RAIN_SPEED:330,
         RAIN_PARTICLE_SIZE: 0.08,
@@ -114,15 +114,6 @@ let scene,camera,renderer,composer,clock;
 const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 let rain, rainPositions;
 let currentTrackedCarX = 0;
-
-// Textures for neon signs and billboards (9:16 aspect ratio)
-const NEON_TEXTURE_URLS = [
-    'https://dummyimage.com/360x640/ff00ff/000000.jpg&text=Sign1',
-    'https://dummyimage.com/360x640/00ffff/000000.jpg&text=Sign2',
-    'https://dummyimage.com/360x640/ffff00/000000.jpg&text=Sign3'
-];
-const textureLoader = new THREE.TextureLoader();
-textureLoader.setCrossOrigin('anonymous');
 
 /* ---------- INIT ---------- */
 init();
@@ -327,18 +318,13 @@ function addNeons(parent,w,d,h_geom,foundationHeight=0){
         const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
         const intensityFactor = 0.7 + Math.random() * 0.7;
         const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
-        const texUrl = NEON_TEXTURE_URLS[Math.floor(Math.random()*NEON_TEXTURE_URLS.length)];
-        const signMaterial = new THREE.MeshStandardMaterial({
+        const signMaterial = new THREE.MeshBasicMaterial({
             color: finalNeonColor,
-            emissive: finalNeonColor,
-            emissiveIntensity: 2.5,
-            roughness: 1.0,
-            metalness: 0.0,
             transparent:true,
             opacity: Math.random() * 0.3 + 0.4,
-            side:THREE.DoubleSide
+            side:THREE.DoubleSide,
+            blending:THREE.AdditiveBlending
         });
-        textureLoader.load(texUrl, tex => { signMaterial.map = tex; signMaterial.needsUpdate = true; });
         const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
         const upper = (h_geom * 0.85) / 2;
         const lower = -foundationHeight;
@@ -346,9 +332,6 @@ function addNeons(parent,w,d,h_geom,foundationHeight=0){
         const off=0.11;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
-        const neonLight = new THREE.PointLight(finalNeonColor, 3, 40);
-        neonLight.position.copy(sign.position);
-        parent.add(neonLight);
     }
 }
 function createInitialBuildings(){for(let i=0;i<CONFIG.city.NUM_BUILDINGS;i++){const b=createBuilding();scene.add(b);buildings.push(b);}}
@@ -439,29 +422,15 @@ function _createCarVisuals(type = 'normal') {
     else if (rH < 0.85) headlightColor.setHSL(0.0, 0.0, 0.9);
     else headlightColor.setHSL(0.6, 0.8, 0.9);
     headlightColor.multiplyScalar(0.9 + Math.random() * 0.3);
-    const hMat = new THREE.MeshStandardMaterial({
-        color: headlightColor,
-        emissive: headlightColor,
-        emissiveIntensity: 3.0,
-        roughness: 0.5,
-        metalness: 0.1,
-        fog: false
-    });
+    const hMat = new THREE.MeshBasicMaterial({ color: headlightColor, fog: false });
     const taillightColor = new THREE.Color(0xff0000);
     taillightColor.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
     taillightColor.multiplyScalar(0.8 + Math.random() * 0.4);
     const tMat = new THREE.MeshBasicMaterial({ color: taillightColor, fog: false });
     [-1, 1].forEach(s => {
-        const hl = new THREE.Mesh(hGeo, hMat);
-        hl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, bh*0.1, -bl/2-0.08);
-        g.add(hl);
-        const light = new THREE.PointLight(headlightColor, 8, 100);
-        light.position.copy(hl.position);
-        g.add(light);
+        const hl = new THREE.Mesh(hGeo, hMat); hl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, bh*0.1, -bl/2-0.08); g.add(hl);
         const tailYPos = (type === 'bus') ? bh*0.25 : bh*0.1;
-        const tl = new THREE.Mesh(tGeo, tMat);
-        tl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, tailYPos, bl/2+0.08);
-        g.add(tl);
+        const tl = new THREE.Mesh(tGeo, tMat); tl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, tailYPos, bl/2+0.08); g.add(tl);
     });
 
     g.userData.type = type;
@@ -490,28 +459,14 @@ function _createTruckVisuals() {
     else if (rHT < 0.85) headlightColorTruck.setHSL(0.0, 0.0, 0.9);
     else headlightColorTruck.setHSL(0.6, 0.8, 0.9);
     headlightColorTruck.multiplyScalar(0.9 + Math.random() * 0.3);
-    const hMatTruck = new THREE.MeshStandardMaterial({
-        color: headlightColorTruck,
-        emissive: headlightColorTruck,
-        emissiveIntensity: 3.0,
-        roughness: 0.5,
-        metalness: 0.1,
-        fog:false
-    });
+    const hMatTruck = new THREE.MeshBasicMaterial({ color: headlightColorTruck, fog:false });
     const taillightColorTruck = new THREE.Color(0xff0000);
     taillightColorTruck.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
     taillightColorTruck.multiplyScalar(0.8 + Math.random() * 0.4);
     const tMatTruck = new THREE.MeshBasicMaterial({ color: taillightColorTruck, fog:false });
     const markerMatOrange = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa500).multiplyScalar(0.7 + Math.random()*0.5), fog:false });
     const markerMatRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff0000).multiplyScalar(0.6 + Math.random()*0.4), fog:false });
-    [-1,1].forEach(s=>{ 
-        const hl=new THREE.Mesh(hGeo,hMatTruck); 
-        hl.position.set((cabW/2.8)*s, -cabH*0.25, cab.position.z-cabL/2-0.1); 
-        g.add(hl); 
-        const light = new THREE.PointLight(headlightColorTruck, 8, 120); 
-        light.position.copy(hl.position); 
-        g.add(light); 
-    });
+    [-1,1].forEach(s=>{ const hl=new THREE.Mesh(hGeo,hMatTruck); hl.position.set((cabW/2.8)*s, -cabH*0.25, cab.position.z-cabL/2-0.1); g.add(hl); });
     [-1,1].forEach(s=>{ const tl=new THREE.Mesh(tGeo,tMatTruck); tl.position.set((trailerW/2.8)*s, -trailerH*0.3, trailer.position.z+trailerL/2+0.1); g.add(tl); });
     for(let i=0; i<3; i++){ const m = new THREE.Mesh(markerGeo, markerMatOrange); m.position.set((i-1)*cabW*0.3, cabH/2 + 0.1, cab.position.z - cabL/2 + 0.1); g.add(m); }
     for(let i=0; i<3; i++){ const m = new THREE.Mesh(markerGeo, markerMatRed); m.position.set((i-1)*trailerW*0.3, trailerH/2 + 0.1, trailer.position.z + trailerL/2 - 0.1); g.add(m); }
@@ -630,49 +585,33 @@ function createInitialXVehicles(){
 /* ---------- BILLBOARDS, LARGE SCREEN & RAIN (No changes from original) ---------- */
 function createBillboard(zPos=null){
     const w=Math.random()*18+12, h=Math.random()*10+6;
-    const texUrl = NEON_TEXTURE_URLS[Math.floor(Math.random()*NEON_TEXTURE_URLS.length)];
-    const emissiveColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-    const billboardMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: emissiveColor,
-        emissiveIntensity: 2.0,
-        roughness: 1.0,
-        metalness: 0.0,
+    const billboardMaterial = new THREE.MeshBasicMaterial({
+        color:CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)],
         transparent:true,
         opacity: 0.15 + Math.random()*0.3,
+        blending:THREE.AdditiveBlending,
         side:THREE.DoubleSide
     });
-    textureLoader.load(texUrl, tex => { billboardMaterial.map = tex; billboardMaterial.needsUpdate = true; });
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
-    const group = new THREE.Group();
     const side=Math.random()<0.5?-1:1, minX=CONFIG.city.CORRIDOR_WIDTH/2+w/2+10;
     const billboardY = CONFIG.camera.BASE_HEIGHT + (Math.random() - 0.5) * 250;
     plane.position.set(side*(minX+Math.random()*80), billboardY, zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH));
     plane.rotation.y=side>0?Math.PI/2:-Math.PI/2;
-    group.add(plane);
-    const light = new THREE.PointLight(emissiveColor, 5, 60);
-    light.position.copy(plane.position);
-    group.add(light);
-    return group;
+    return plane;
 }
 function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();scene.add(bb);billboards.push(bb);}}
 function createLargeEmissiveScreen() {
     const screenWidth = 200 + Math.random() * 100;
     const screenHeight = 300 + Math.random() * 150;
-    const texUrl = NEON_TEXTURE_URLS[Math.floor(Math.random()*NEON_TEXTURE_URLS.length)];
     const screenColor = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.4, 0.6);
-    const screenMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: screenColor,
-        emissiveIntensity: 2.0,
-        roughness: 1.0,
-        metalness: 0.0,
+    const screenMaterial = new THREE.MeshBasicMaterial({
+        color: screenColor,
         transparent: true,
         opacity: 0.15 + Math.random() * 0.15,
+        blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         fog: false
     });
-    textureLoader.load(texUrl, tex => { screenMaterial.map = tex; screenMaterial.needsUpdate = true; });
     const largeScreen = new THREE.Mesh(new THREE.PlaneGeometry(screenWidth, screenHeight), screenMaterial);
     const side = Math.random() < 0.5 ? -1 : 1;
     const screenXPos = side * (CONFIG.city.CORRIDOR_WIDTH / 1.2 + screenWidth / 2 + Math.random() * 100);
@@ -682,9 +621,6 @@ function createLargeEmissiveScreen() {
     if (side > 0) { largeScreen.rotation.y = -Math.PI / 2 * (0.8 + Math.random()*0.4); }
     else { largeScreen.rotation.y = Math.PI / 2 * (0.8 + Math.random()*0.4); }
     scene.add(largeScreen);
-    const light = new THREE.PointLight(screenColor, 8, 150);
-    light.position.copy(largeScreen.position);
-    scene.add(light);
 }
 function createRain(){
     rainPositions=new Float32Array(CONFIG.effects.RAIN_COUNT*3);
