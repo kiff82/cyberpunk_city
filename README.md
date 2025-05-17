@@ -7,6 +7,7 @@ This project renders a Three.js scene with a drone flying through a neon citysca
 Modern browsers require ES modules to be served over HTTP. If you open `index.html` directly with the `file://` protocol, the import map in the HTML file will not resolve the modules and the page will fail to load. To view the project correctly, serve the directory through a local web server and then visit the page via `http://localhost`.
 The scene pulls Three.js modules from the CDN at [unpkg.com](https://unpkg.com/), so an active internet connection is required. If you need to run the project completely offline, download those modules and update the import paths accordingly.
 
+
 ### Using Python
 
 If you have Python 3 installed, run the following command in the repository root:
