@@ -32,7 +32,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding } from "./src/buildings.js";
+import { createSimpleBuilding, addOfficeWindows } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
@@ -235,10 +235,10 @@ function createBuilding(zPos=null){
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
             metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
         });
+        let useCylinder = false;
         if (s === 0) {
             segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
         } else {
-            let useCylinder = false;
             if (buildingStyle === 'tapered_cylinder') useCylinder = true;
             else if (buildingStyle === 'mixed_segments') useCylinder = Math.random() < 0.5;
             if (useCylinder && currW > 5 && currD > 5) {
@@ -255,6 +255,9 @@ function createBuilding(zPos=null){
         segmentMesh.position.y = yCursor + h/2;
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
+        if(!useCylinder){
+            addOfficeWindows(segmentMesh, segmentParams.w, h, segmentParams.d);
+        }
         if(s===0) baseSegment = segmentMesh;
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
              addGreebles(segmentMesh, segmentParams.w, segmentParams.d, h);
