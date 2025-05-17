@@ -38,7 +38,7 @@ import { createSimpleCar } from "./src/cars.js";
 /* ---------- CONFIG ---------- */
 const CONFIG={
     city:{
-        NUM_BUILDINGS:300,
+        NUM_BUILDINGS:150,
         CITY_RADIUS:700,
         CORRIDOR_WIDTH:120,
         BUILDING_MIN_Y_OFFSET: 80,
@@ -54,7 +54,7 @@ const CONFIG={
         DISTRICT_LENGTH: 800
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
-        NUM_CARS:100,
+        NUM_CARS:60,
         SPEED_MIN:30,
         SPEED_MAX:90,
         TRUCK_PROBABILITY: 0.15,
@@ -65,7 +65,7 @@ const CONFIG={
     },
     trafficX: { // New: Configuration for X-axis traffic
         NUM_JUNCTIONS: 3,
-        CARS_PER_JUNCTION: 10,
+        CARS_PER_JUNCTION: 6,
         JUNCTION_Z_OFFSETS: [-200, -450, -700], // Z distance from camera for each junction layer
         JUNCTION_X_TRAVEL_WIDTH: 1000,      // How far cars travel left/right before wrapping
         JUNCTION_Z_DEPTH_VARIATION: 30,     // Small random Z spread within a junction layer
@@ -93,7 +93,7 @@ const CONFIG={
     },
     effects:{
         BLOOM_STRENGTH: 2.0,
-        RAIN_COUNT: 800,
+        RAIN_COUNT: 400,
         RAIN_SPEED:330,
         RAIN_PARTICLE_SIZE: 0.08,
         RAIN_CULL_DISTANCE_Z: 20,

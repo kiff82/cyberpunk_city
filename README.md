@@ -5,6 +5,16 @@ This project renders a Three.js scene with a drone flying through a neon citysca
 ## Running the project
 
 Modern browsers require ES modules to be served over HTTP. If you open `index.html` directly with the `file://` protocol, the import map in the HTML file will not resolve the modules and the page will fail to load. To view the project correctly, serve the directory through a local web server and then visit the page via `http://localhost`.
+The scene pulls Three.js modules from the CDN at [unpkg.com](https://unpkg.com/), so an active internet connection is required. If you need to run the project completely offline, download those modules and update the import paths accordingly.
+
+### GitHub Pages
+
+You can deploy the project to GitHub Pages and access it from a URL such as
+`https://USERNAME.github.io/cyberpunk_city/`. The site is purely static, so no
+extra build step is required. Be aware that the 3D scene is resource intensive;
+older mobile devices or browsers without WebGL support may fail to render it.
+If the page performs poorly, reduce values in the `CONFIG` object near the top of
+`index.html` (for example, `NUM_BUILDINGS` or `RAIN_COUNT`).
 
 ### Using Python
 
