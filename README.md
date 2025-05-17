@@ -18,11 +18,14 @@ This starts a server at [http://localhost:8000](http://localhost:8000). Open tha
 
 ### Using Node.js (optional)
 
-If you prefer Node.js, install the `serve` package and use it to host the files:
+If you prefer Node.js, the project now includes a `package.json` with a start
+script. Run the following command to serve the files:
 
 ```bash
-npx serve
+npm start
 ```
+
+The first time you run this command, install dependencies with `npm install`.
 
 ## Development
 
