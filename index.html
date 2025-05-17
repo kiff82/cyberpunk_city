@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyberpunk City Drone Flight – v5.8.2: Tiered & X-Axis Traffic (Brighter)</title>
+    <style>
+        :root { --bg:#000; }
+        body{ margin:0; overflow:hidden; background:var(--bg);}
+        canvas{ display:block; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+<script type="module">
+// ════════════════════════════════════════════════════════════════
+// CYBERPUNK NEON CANYON – VERSION 5.8.2
+// MODIFIED: Tiered traffic lanes (Z-axis)
+// ADDED: Tiered X-axis traffic with junctions
+// MODIFIED: Increased brightness for better building visibility
+// ════════════════════════════════════════════════════════════════
+
+import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
+/* ---------- CONFIG ---------- */
+const CONFIG={
+    city:{
+        NUM_BUILDINGS:420,
+        CITY_RADIUS:700,
+        CORRIDOR_WIDTH:120,
+        BUILDING_MIN_Y_OFFSET: 80,
+        BUILDING_Y_RANDOM_RANGE: 120,
+        BUILDING_MATERIAL_PRESETS: [ // Made base colors slightly lighter
+            { name: "DarkConcrete", baseColor: 0x202025, roughness: 0.95, metalness: 0.15 },
+            { name: "GrimyMetal", baseColor: 0x25282a, roughness: 0.7, metalness: 0.8 },
+            { name: "CoatedPanel", baseColor: 0x181818, roughness: 0.4, metalness: 0.5 },
+            { name: "HeavyDutyStructure", baseColor: 0x202228, roughness: 0.85, metalness: 0.7 }
+        ],
+        GREEBLE_DENSITY: 0.1
+    },
+    trafficZ:{ // Renamed from traffic to trafficZ for clarity
+        NUM_CARS:140,
+        SPEED_MIN:30,
+        SPEED_MAX:90,
+        TRUCK_PROBABILITY: 0.15,
+        CAR_TYPES: ['normal', 'van', 'sporty', 'bus', 'hover_low'],
+        Y_SPREAD_AROUND_CAMERA: 40,
+        LANE_VERTICAL_SEPARATION: 60,
+        LANE_Y_SPREAD_FACTOR: 0.4
+    },
+    trafficX: { // New: Configuration for X-axis traffic
+        NUM_JUNCTIONS: 3,
+        CARS_PER_JUNCTION: 15,
+        JUNCTION_Z_OFFSETS: [-200, -450, -700], // Z distance from camera for each junction layer
+        JUNCTION_X_TRAVEL_WIDTH: 1000,      // How far cars travel left/right before wrapping
+        JUNCTION_Z_DEPTH_VARIATION: 30,     // Small random Z spread within a junction layer
+
+        SPEED_MIN: 35,
+        SPEED_MAX: 80,
+        TRUCK_PROBABILITY: 0.1,
+        CAR_TYPES: ['normal', 'van', 'sporty', 'hover_low'], // Can be same or different from Z-axis
+
+        BASE_Y_OFFSET_FROM_Z_TRAFFIC_LOWEST: -70, // Base Y of X-traffic relative to the lowest Z-traffic lane. Negative = underneath.
+        LANE_VERTICAL_SEPARATION: 30,
+        LANE_Y_SPREAD_FACTOR: 0.3,
+        Y_SPREAD_IN_JUNCTION: 20 // Max Y variation within a single X-axis lane
+    },
+    camera:{
+        SPEED:39,
+        BASE_HEIGHT:450,
+        X_POS_LERP_FACTOR: 0.008,
+        X_TARGET_LERP_FACTOR: 0.02,
+        SWAY_AMPLITUDE: 4,
+        SWAY_FREQUENCY: 0.2,
+        MIN_LEAD_CAR_DISTANCE: 30,
+        MAX_LEAD_CAR_DISTANCE: 250,
+        BANK_LERP_FACTOR: 0.05
+    },
+    effects:{
+        BLOOM_STRENGTH: 1.5,
+        RAIN_COUNT: 800,
+        RAIN_SPEED:330,
+        RAIN_PARTICLE_SIZE: 0.08,
+        RAIN_CULL_DISTANCE_Z: 20,
+        RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA: 50,
+        RAIN_MAX_OPACITY: 0.25,
+        RAIN_MIN_OPACITY_FACTOR: 0.1,
+        RAIN_FADE_PERIOD: 0
+    },
+    misc:{
+        VISIBLE_DEPTH:1200,
+        SPAWN_PADDING:300,
+        NEON_COLORS:[
+            0xff4400,0x00aaff,0xffdd33,0xff2222,0xcc00ff,0x00dd88,0xeeeeff,
+        ]
+    }
+};
+
+/* ---------- GLOBALS ---------- */
+let scene,camera,renderer,composer,clock;
+const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
+let rain, rainPositions;
+let currentTrackedCarX = 0;
+
+/* ---------- INIT ---------- */
+init();
+
+function init(){
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x060812);
+    scene.fog=new THREE.FogExp2(0x101520, 0.0012);
+
+    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,CONFIG.misc.VISIBLE_DEPTH+CONFIG.misc.SPAWN_PADDING+400);
+    camera.position.set(0,CONFIG.camera.BASE_HEIGHT,0);
+    currentTrackedCarX = camera.position.x;
+
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.4; // MODIFIED from 1.3
+    renderer.outputEncoding=THREE.sRGBEncoding;
+    document.body.appendChild(renderer.domElement);
+
+    composer=new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene,camera));
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        CONFIG.effects.BLOOM_STRENGTH,
+        0.4,
+        0.8
+    );
+    composer.addPass(bloomPass);
+
+    scene.add(new THREE.AmbientLight(0x404050, 0.7)); // MODIFIED from 0x333344, 0.5
+    const dir=new THREE.DirectionalLight(0xffaa77, 0.3); // MODIFIED from 0xff9966, 0.2
+    dir.position.set(0, -0.5, 0.5);
+    scene.add(dir);
+
+    clock=new THREE.Clock();
+
+    createInitialBuildings();
+    createInitialZVehicles(); // Renamed
+    createInitialXVehicles(); // Added
+    createBillboards();
+    createLargeEmissiveScreen();
+    createRain();
+
+    window.addEventListener('resize',onResize);
+    animate();
+}
+
+/* ---------- BUILDINGS (No changes from original except material presets in CONFIG) ---------- */
+function addGreebles(mesh, segmentWidth, segmentDepth, segmentHeight) {
+    const greebleCount = Math.floor(Math.random() * 6) + 2;
+    const greebleMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0x050508), // This could also be brightened if needed
+        roughness: 0.8,
+        metalness: 0.4
+    });
+    for (let i = 0; i < greebleCount; i++) {
+        const gw = Math.random() * segmentWidth * 0.1 + 0.5;
+        const gh = Math.random() * segmentHeight * 0.2 + 0.5;
+        const gd = Math.random() * segmentDepth * 0.1 + 0.5;
+        const greeble = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, gd), greebleMaterial);
+        const face = Math.floor(Math.random() * 4);
+        const offsetX = (Math.random() - 0.5) * (segmentWidth - gw);
+        const offsetY = (Math.random() - 0.5) * (segmentHeight - gh);
+        const offsetZ = (Math.random() - 0.5) * (segmentDepth - gd);
+        switch (face) {
+            case 0: greeble.position.set(offsetX, offsetY, segmentDepth / 2 + gd / 2 - 0.1); break;
+            case 1: greeble.position.set(offsetX, offsetY, -segmentDepth / 2 - gd / 2 + 0.1); break;
+            case 2: greeble.position.set(segmentWidth / 2 + gw / 2 - 0.1, offsetY, offsetZ); break;
+            case 3: greeble.position.set(-segmentWidth / 2 - gw / 2 + 0.1, offsetY, offsetZ); break;
+        }
+        mesh.add(greeble);
+    }
+}
+function createBuilding(zPos=null){
+    const g = new THREE.Group();
+    const segments = Math.floor(Math.random()*4)+2;
+    let currW = Math.random()*70+30;
+    let currD = Math.random()*70+30;
+    let yCursor = 0;
+    let maxW = 0, maxD = 0;
+    let baseSegment = null;
+    const buildingStyle = Math.random() < 0.3 ? 'tapered_cylinder' : (Math.random() < 0.6 ? 'mixed_segments' : 'stacked_boxes');
+    for(let s=0; s<segments; s++){
+        const h = Math.random()*180+50;
+        let segmentMesh;
+        let segmentParams = { w: currW, h: h, d: currD };
+        const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
+        const buildingMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(materialPreset.baseColor).multiplyScalar(0.7 + Math.random()*0.6),
+            roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
+            metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
+        });
+        if (s === 0) {
+            segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
+        } else {
+            let useCylinder = false;
+            if (buildingStyle === 'tapered_cylinder') useCylinder = true;
+            else if (buildingStyle === 'mixed_segments') useCylinder = Math.random() < 0.5;
+            if (useCylinder && currW > 5 && currD > 5) {
+                const radius = Math.min(currW, currD) / 2 * (0.8 + Math.random() * 0.2);
+                segmentMesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * (0.7 + Math.random()*0.3), h, 12 + Math.floor(Math.random()*12)), buildingMaterial);
+                segmentParams.w = radius * 2; segmentParams.d = radius * 2;
+            } else {
+                segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
+            }
+        }
+        segmentMesh.position.y = yCursor + h/2;
+        g.add(segmentMesh);
+        if(s===0) baseSegment = segmentMesh;
+        if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
+             addGreebles(segmentMesh, segmentParams.w, segmentParams.d, h);
+        }
+        yCursor += h;
+        currW *= (0.6 + Math.random()*0.3);
+        currD *= (0.6 + Math.random()*0.3);
+        maxW = Math.max(maxW, segmentParams.w);
+        maxD = Math.max(maxD, segmentParams.d);
+    }
+    if(Math.random() < 0.4){
+        const antH = Math.random()*50+25;
+        const antennaType = Math.random();
+        let antenna;
+        if (antennaType < 0.6) {
+             antenna = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8,0.8,antH,8),
+                new THREE.MeshStandardMaterial({color:0x777788,roughness:0.3,metalness:0.9})
+            );
+        } else {
+            antenna = new THREE.Mesh(
+                new THREE.CylinderGeometry(Math.random()*2+1, Math.random()*1.5+0.5 ,antH, Math.random() < 0.5 ? 4 : 6),
+                new THREE.MeshStandardMaterial({color:0x555566,roughness:0.6,metalness:0.7})
+            );
+        }
+        antenna.position.y = yCursor + antH/2;
+        g.add(antenna);
+    }
+    if (baseSegment) {
+        addNeons(baseSegment, baseSegment.geometry.parameters.width, baseSegment.geometry.parameters.depth, baseSegment.geometry.parameters.height);
+    }
+    const side=Math.random()<0.5?-1:1;
+    const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
+    const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+    g.position.set(
+        side*(minX+Math.random()*(CONFIG.city.CITY_RADIUS-minX)),
+        baseOffsetY,
+        zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH)
+    );
+    g.userData.base={w:maxW,d:maxD,h:yCursor};
+    g.userData.baseSegment = baseSegment;
+    return g;
+}
+function addNeons(parent,w,d,h_geom){
+    while(parent.children.length > 0){
+        const c=parent.children[0];
+        parent.remove(c);
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
+    }
+    const n=Math.floor(Math.random()*5)+3;
+    for(let i=0;i<n;i++){
+        const face=Math.floor(Math.random()*4), nH_sign=Math.random()*7+2, nW_sign=(face<2?w:d)*(Math.random()*0.6+0.2);
+        const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
+        const intensityFactor = 0.7 + Math.random() * 0.7;
+        const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
+        const signMaterial = new THREE.MeshBasicMaterial({
+            color: finalNeonColor,
+            transparent:true,
+            opacity: Math.random() * 0.3 + 0.4,
+            side:THREE.DoubleSide,
+            blending:THREE.AdditiveBlending
+        });
+        const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
+        sign.position.y=(Math.random()-0.5)*(h_geom*0.85);
+        const off=0.11;
+        switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
+        parent.add(sign);
+    }
+}
+function createInitialBuildings(){for(let i=0;i<CONFIG.city.NUM_BUILDINGS;i++){const b=createBuilding();scene.add(b);buildings.push(b);}}
+
+/* ---------- VEHICLE CREATION REFACTOR ---------- */
+
+// _createCarVisuals: Creates the car mesh and lights, oriented for -Z forward.
+function _createCarVisuals(type = 'normal') {
+    const g = new THREE.Group();
+    let bw, bh, bl;
+    let bodyColor = new THREE.Color();
+    let carMaterial;
+
+    switch(type) {
+        case 'van':
+            bw = Math.random() * 2.2 + 2.8; bh = Math.random() * 1.5 + 2.0; bl = Math.random() * 4.0 + 6.0;
+            bodyColor.setHSL(Math.random(), Math.random()*0.2 + 0.2, Math.random()*0.15 + 0.15);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.7, metalness: 0.4 });
+            break;
+        case 'sporty':
+            bw = Math.random() * 2.0 + 3.5; bh = Math.random() * 0.8 + 0.9; bl = Math.random() * 4.0 + 5.0;
+            bodyColor.setHSL(Math.random(), Math.random() * 0.4 + 0.6, Math.random() * 0.3 + 0.4);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.85 });
+            break;
+        case 'bus':
+            bw = Math.random() * 2.5 + 3.2; bh = Math.random() * 2.0 + 2.8; bl = Math.random() * 9.0 + 12.0;
+            bodyColor.setHSL(Math.random()*0.1 + 0.55, Math.random()*0.2+0.3, Math.random()*0.15+0.1);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.6, metalness: 0.5 });
+            break;
+        case 'hover_low':
+            bw = Math.random() * 2.8 + 4.0; bh = Math.random() * 0.6 + 0.7; bl = Math.random() * 5.0 + 6.5;
+            const hoverBaseColorVal = Math.random();
+            bodyColor.setHSL(hoverBaseColorVal, Math.random()*0.3+0.5, Math.random()*0.2+0.3);
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.25, metalness: 0.7 });
+
+            const thrusterBaseColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
+            thrusterBaseColor.multiplyScalar(0.8 + Math.random() * 0.5);
+            const thrusterMat = new THREE.MeshBasicMaterial({ color: thrusterBaseColor, fog: false });
+            const thrusterGeo = new THREE.BoxGeometry(bw*0.15, bh*0.4, bl*0.1);
+            [-1,1].forEach(s => {
+                const thrusterL = new THREE.Mesh(thrusterGeo, thrusterMat);
+                thrusterL.position.set((bw/3)*s, -bh*0.1, bl/2 * 0.8); g.add(thrusterL);
+                const thrusterR = new THREE.Mesh(thrusterGeo, thrusterMat);
+                thrusterR.position.set((bw/3)*s, -bh*0.1, -bl/2 * 0.8); g.add(thrusterR);
+            });
+            const beaconGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const beaconMat = new THREE.MeshBasicMaterial({color: new THREE.Color(0xffaa00).multiplyScalar(0.7 + Math.random()*0.6), fog:false});
+            const topBeacon = new THREE.Mesh(beaconGeo, beaconMat);
+            topBeacon.position.y = bh/2 + 0.1; g.add(topBeacon);
+            break;
+        case 'normal': default:
+            bw = Math.random() * 2.5 + 3; bh = Math.random() * 1.2 + 1; bl = Math.random() * 4.5 + 5.5;
+            bodyColor.setRGB(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2); // These are also quite dark
+            carMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.45, metalness: 0.6 });
+            break;
+    }
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bl), carMaterial);
+    g.add(body);
+
+    const headlightSizeFactor = (type === 'bus' || type === 'van') ? 0.6 : 0.5;
+    const taillightSizeFactor = (type === 'bus' || type === 'van') ? 0.7 : 0.6;
+    const hGeo = new THREE.BoxGeometry(headlightSizeFactor, bh * 0.25, 0.2), tGeo = new THREE.BoxGeometry(taillightSizeFactor, bh * 0.2, 0.2);
+    const headlightColor = new THREE.Color();
+    const rH = Math.random();
+    if (rH < 0.5) headlightColor.setHSL(0.155, 0.9, 0.85);
+    else if (rH < 0.85) headlightColor.setHSL(0.0, 0.0, 0.9);
+    else headlightColor.setHSL(0.6, 0.8, 0.9);
+    headlightColor.multiplyScalar(0.9 + Math.random() * 0.3);
+    const hMat = new THREE.MeshBasicMaterial({ color: headlightColor, fog: false });
+    const taillightColor = new THREE.Color(0xff0000);
+    taillightColor.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
+    taillightColor.multiplyScalar(0.8 + Math.random() * 0.4);
+    const tMat = new THREE.MeshBasicMaterial({ color: taillightColor, fog: false });
+    [-1, 1].forEach(s => {
+        const hl = new THREE.Mesh(hGeo, hMat); hl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, bh*0.1, -bl/2-0.08); g.add(hl);
+        const tailYPos = (type === 'bus') ? bh*0.25 : bh*0.1;
+        const tl = new THREE.Mesh(tGeo, tMat); tl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, tailYPos, bl/2+0.08); g.add(tl);
+    });
+
+    g.userData.type = type;
+    g.userData.baseDimensions = { w: bw, h: bh, l: bl };
+    return g;
+}
+
+// _createTruckVisuals: Creates the truck mesh and lights, oriented for -Z forward.
+function _createTruckVisuals() {
+    const g = new THREE.Group();
+    const cabW = Math.random() * 2.8 + 3.2, cabH = Math.random() * 2.2 + 2.8, cabL = Math.random() * 2.5 + 3.0;
+    const trailerW = cabW * (Math.random() * 0.05 + 0.95), trailerH = cabH * (Math.random() * 0.05 + 0.95), trailerL = Math.random() * 10 + 14;
+    const cabColor = new THREE.Color().setHSL(Math.random(), Math.random()*0.1+0.1, Math.random()*0.2+0.1);
+    const trailerColor = new THREE.Color().setHSL(Math.random(), Math.random()*0.1, Math.random()*0.3+0.2);
+    const cabMat = new THREE.MeshStandardMaterial({ color: cabColor, roughness: 0.6, metalness: 0.5 });
+    const trailerMat = new THREE.MeshStandardMaterial({ color: trailerColor, roughness: 0.8, metalness: 0.3 });
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), cabMat);
+    cab.position.z = -(trailerL / 2 + cabL / 2) * 0.7; g.add(cab);
+    const trailer = new THREE.Mesh(new THREE.BoxGeometry(trailerW, trailerH, trailerL), trailerMat);
+    trailer.position.z = (cabL / 2) * 0.3; g.add(trailer);
+    const hGeo = new THREE.BoxGeometry(0.6, 0.4, 0.2), tGeo = new THREE.BoxGeometry(0.7, 0.3, 0.2);
+    const markerGeo = new THREE.SphereGeometry(0.15, 6, 6);
+    const headlightColorTruck = new THREE.Color();
+    const rHT = Math.random();
+    if (rHT < 0.5) headlightColorTruck.setHSL(0.155, 0.9, 0.85);
+    else if (rHT < 0.85) headlightColorTruck.setHSL(0.0, 0.0, 0.9);
+    else headlightColorTruck.setHSL(0.6, 0.8, 0.9);
+    headlightColorTruck.multiplyScalar(0.9 + Math.random() * 0.3);
+    const hMatTruck = new THREE.MeshBasicMaterial({ color: headlightColorTruck, fog:false });
+    const taillightColorTruck = new THREE.Color(0xff0000);
+    taillightColorTruck.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
+    taillightColorTruck.multiplyScalar(0.8 + Math.random() * 0.4);
+    const tMatTruck = new THREE.MeshBasicMaterial({ color: taillightColorTruck, fog:false });
+    const markerMatOrange = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa500).multiplyScalar(0.7 + Math.random()*0.5), fog:false });
+    const markerMatRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff0000).multiplyScalar(0.6 + Math.random()*0.4), fog:false });
+    [-1,1].forEach(s=>{ const hl=new THREE.Mesh(hGeo,hMatTruck); hl.position.set((cabW/2.8)*s, -cabH*0.25, cab.position.z-cabL/2-0.1); g.add(hl); });
+    [-1,1].forEach(s=>{ const tl=new THREE.Mesh(tGeo,tMatTruck); tl.position.set((trailerW/2.8)*s, -trailerH*0.3, trailer.position.z+trailerL/2+0.1); g.add(tl); });
+    for(let i=0; i<3; i++){ const m = new THREE.Mesh(markerGeo, markerMatOrange); m.position.set((i-1)*cabW*0.3, cabH/2 + 0.1, cab.position.z - cabL/2 + 0.1); g.add(m); }
+    for(let i=0; i<3; i++){ const m = new THREE.Mesh(markerGeo, markerMatRed); m.position.set((i-1)*trailerW*0.3, trailerH/2 + 0.1, trailer.position.z + trailerL/2 - 0.1); g.add(m); }
+    for(let i=0; i< Math.floor(trailerL / 4); i++){ [-1,1].forEach(side => { const m = new THREE.Mesh(markerGeo, markerMatOrange); m.position.set(side * (trailerW/2 + 0.05) , -trailerH*0.4, trailer.position.z - trailerL/2 + 2 + i*4); g.add(m); }); }
+
+    g.userData.type = 'truck';
+    g.userData.baseDimensions = { w: cabW, h: cabH, l: cabL + trailerL };
+    return g;
+}
+
+// createZAxisVehicle: Creates a vehicle for Z-axis traffic
+function createZAxisVehicle(zPos = null) {
+    const config = CONFIG.trafficZ;
+    let g; // Vehicle group
+
+    if (Math.random() < config.TRUCK_PROBABILITY) {
+        g = _createTruckVisuals();
+    } else {
+        const type = config.CAR_TYPES[Math.floor(Math.random() * config.CAR_TYPES.length)];
+        g = _createCarVisuals(type);
+    }
+
+    // Speed (Z-axis)
+    g.userData.speed = (Math.random()<0.5?-1:1)*(Math.random()*(config.SPEED_MAX-config.SPEED_MIN)+config.SPEED_MIN);
+    if (g.userData.type === 'bus') g.userData.speed *= 0.7;
+    if (g.userData.type === 'hover_low') g.userData.speed *= (1.0 + Math.random() * 0.3);
+    if (g.userData.type === 'truck') g.userData.speed *= (g.userData.speed < 0 ? 0.75: 0.85); // Trucks slightly different speeds
+
+    // Y Position (Z-axis traffic)
+    let vehicleY;
+    const ySpreadInLane = (Math.random() - 0.5) * config.Y_SPREAD_AROUND_CAMERA * config.LANE_Y_SPREAD_FACTOR;
+    if (g.userData.speed < 0) { // Oncoming traffic
+        vehicleY = CONFIG.camera.BASE_HEIGHT + config.LANE_VERTICAL_SEPARATION + ySpreadInLane;
+    } else { // Outgoing traffic
+        vehicleY = CONFIG.camera.BASE_HEIGHT + ySpreadInLane;
+    }
+
+    // Initial X, Z position (Z-axis traffic)
+    g.position.set(
+        (Math.random()-0.5)*(CONFIG.city.CORRIDOR_WIDTH * (g.userData.type === 'truck' ? 0.5 : 0.6)),
+        vehicleY,
+        zPos ?? (camera.position.z - Math.random() * CONFIG.misc.VISIBLE_DEPTH)
+    );
+    return g;
+}
+
+
+// createXAxisVehicle: Creates a vehicle for X-axis traffic
+function createXAxisVehicle(junctionIndex) {
+    const config = CONFIG.trafficX;
+    let g; // Vehicle group
+
+    if (Math.random() < config.TRUCK_PROBABILITY) {
+        g = _createTruckVisuals();
+    } else {
+        const type = config.CAR_TYPES[Math.floor(Math.random() * config.CAR_TYPES.length)];
+        g = _createCarVisuals(type);
+    }
+
+    // Speed (X-axis)
+    g.userData.speedX = (Math.random()<0.5?-1:1)*(Math.random()*(config.SPEED_MAX-config.SPEED_MIN)+config.SPEED_MIN);
+    if (g.userData.type === 'bus') g.userData.speedX *= 0.75; // Adjust speeds for X-axis types if needed
+    if (g.userData.type === 'hover_low') g.userData.speedX *= (1.0 + Math.random() * 0.2);
+
+
+    // Rotation for X-axis travel (car models face -Z by default)
+    if (g.userData.speedX > 0) { // Moving towards +X
+        g.rotation.y = -Math.PI / 2;
+    } else { // Moving towards -X
+        g.rotation.y = Math.PI / 2;
+    }
+
+    // Y Position (X-axis traffic)
+    const lowestZTrafficLaneY = CONFIG.camera.BASE_HEIGHT; // Camera is in the lower Z-lane
+    const baseXCarY = lowestZTrafficLaneY + config.BASE_Y_OFFSET_FROM_Z_TRAFFIC_LOWEST;
+    const ySpreadInLaneX = (Math.random() - 0.5) * config.Y_SPREAD_IN_JUNCTION * config.LANE_Y_SPREAD_FACTOR;
+    let vehicleY_X;
+
+    if (g.userData.speedX < 0) { // Moving in -X (arbitrarily assign to upper tier of X-lanes)
+        vehicleY_X = baseXCarY + config.LANE_VERTICAL_SEPARATION + ySpreadInLaneX;
+    } else { // Moving in +X (lower tier of X-lanes)
+        vehicleY_X = baseXCarY + ySpreadInLaneX;
+    }
+
+    // Initial X position (X-axis traffic)
+    g.position.x = (Math.random() - 0.5) * config.JUNCTION_X_TRAVEL_WIDTH;
+    g.position.y = vehicleY_X;
+    // Z position is dynamic, will be set in animate() based on junctionIndex and camera position
+
+    g.userData.junctionIndex = junctionIndex;
+    g.userData.junctionZDepthVariation = (Math.random() - 0.5) * config.JUNCTION_Z_DEPTH_VARIATION;
+
+    return g;
+}
+
+function createInitialZVehicles(){
+    for(let i=0; i<CONFIG.trafficZ.NUM_CARS; i++){
+        const v = createZAxisVehicle();
+        scene.add(v);
+        carsZ.push(v);
+    }
+}
+
+function createInitialXVehicles(){
+    for (let j = 0; j < CONFIG.trafficX.NUM_JUNCTIONS; j++) {
+        for (let i = 0; i < CONFIG.trafficX.CARS_PER_JUNCTION; i++) {
+            const v = createXAxisVehicle(j);
+            scene.add(v);
+            carsX.push(v);
+        }
+    }
+}
+
+
+/* ---------- BILLBOARDS, LARGE SCREEN & RAIN (No changes from original) ---------- */
+function createBillboard(zPos=null){
+    const w=Math.random()*18+12, h=Math.random()*10+6;
+    const billboardMaterial = new THREE.MeshBasicMaterial({
+        color:CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)],
+        transparent:true,
+        opacity: 0.15 + Math.random()*0.3,
+        blending:THREE.AdditiveBlending,
+        side:THREE.DoubleSide
+    });
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
+    const side=Math.random()<0.5?-1:1, minX=CONFIG.city.CORRIDOR_WIDTH/2+w/2+10;
+    const billboardY = CONFIG.camera.BASE_HEIGHT + (Math.random() - 0.5) * 250;
+    plane.position.set(side*(minX+Math.random()*80), billboardY, zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH));
+    plane.rotation.y=side>0?Math.PI/2:-Math.PI/2;
+    return plane;
+}
+function createBillboards(){for(let i=0;i<60;i++){const bb=createBillboard();scene.add(bb);billboards.push(bb);}}
+function createLargeEmissiveScreen() {
+    const screenWidth = 200 + Math.random() * 100;
+    const screenHeight = 300 + Math.random() * 150;
+    const screenColor = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.4, 0.6);
+    const screenMaterial = new THREE.MeshBasicMaterial({
+        color: screenColor,
+        transparent: true,
+        opacity: 0.15 + Math.random() * 0.15,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        fog: false
+    });
+    const largeScreen = new THREE.Mesh(new THREE.PlaneGeometry(screenWidth, screenHeight), screenMaterial);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const screenXPos = side * (CONFIG.city.CORRIDOR_WIDTH / 1.2 + screenWidth / 2 + Math.random() * 100);
+    const screenYPos = CONFIG.camera.BASE_HEIGHT + Math.random() * 100 - 50;
+    const screenZPos = camera.position.z - (CONFIG.misc.VISIBLE_DEPTH * (0.6 + Math.random() * 0.3));
+    largeScreen.position.set(screenXPos, screenYPos, screenZPos);
+    if (side > 0) { largeScreen.rotation.y = -Math.PI / 2 * (0.8 + Math.random()*0.4); }
+    else { largeScreen.rotation.y = Math.PI / 2 * (0.8 + Math.random()*0.4); }
+    scene.add(largeScreen);
+}
+function createRain(){
+    rainPositions=new Float32Array(CONFIG.effects.RAIN_COUNT*3);
+    for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){
+        rainPositions[i*3]=(Math.random()-0.5)*CONFIG.city.CORRIDOR_WIDTH*1.2;
+        rainPositions[i*3+1]= CONFIG.camera.BASE_HEIGHT + (Math.random() * 400 - 100);
+        const zOffsetRange = CONFIG.misc.VISIBLE_DEPTH - CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA;
+        const randomZOffset = (zOffsetRange > 0) ? Math.random() * zOffsetRange : 0;
+        rainPositions[i*3+2] = camera.position.z - (CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA + randomZOffset);
+    }
+    const rainGeo=new THREE.BufferGeometry();
+    rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
+    rain=new THREE.Points(rainGeo,new THREE.PointsMaterial({
+        color:0x667788, size:CONFIG.effects.RAIN_PARTICLE_SIZE, transparent:true,
+        opacity:CONFIG.effects.RAIN_MAX_OPACITY, depthWrite:false, sizeAttenuation:true, fog: true
+    }));
+    scene.add(rain);
+}
+
+/* ---------- RECYCLE ---------- */
+function recycle(){ // This function now primarily recycles buildings and Z-axis cars
+    const camZ = camera.position.z;
+
+    buildings.forEach(b => {
+        const dz = b.position.z - camZ;
+        const farFrontThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING;
+        const farBackThreshold = CONFIG.misc.SPAWN_PADDING;
+
+        if (dz < -farFrontThreshold || dz > farBackThreshold) {
+            b.position.z = camZ - (CONFIG.misc.VISIBLE_DEPTH + Math.random() * CONFIG.misc.SPAWN_PADDING);
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
+            b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
+            if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
+                addNeons(b.userData.baseSegment,
+                         b.userData.baseSegment.geometry.parameters.width,
+                         b.userData.baseSegment.geometry.parameters.depth,
+                         b.userData.baseSegment.geometry.parameters.height);
+            }
+        }
+    });
+
+    carsZ.forEach(c => { // Changed from cars to carsZ
+        const dzCar = c.position.z - camZ;
+        const carRecycleThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING;
+
+        if (Math.abs(dzCar) > carRecycleThreshold) {
+            const index = carsZ.indexOf(c); // Changed from cars to carsZ
+            if (index > -1) {
+                scene.remove(c);
+                c.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+
+                let newZPos;
+                if (dzCar < 0 && Math.random() < 0.3) {
+                    newZPos = camZ + CONFIG.misc.SPAWN_PADDING + Math.random() * 100;
+                } else {
+                    newZPos = camZ - (CONFIG.misc.VISIBLE_DEPTH + Math.random() * CONFIG.misc.SPAWN_PADDING);
+                }
+                const newCar = createZAxisVehicle(newZPos); // Changed to createZAxisVehicle
+                carsZ[index] = newCar; // Changed from cars to carsZ
+                scene.add(newCar);
+            }
+        }
+    });
+
+    billboards.forEach(bb => {
+        const dz = bb.position.z - camZ;
+        const farFrontThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING;
+        const farBackThreshold = CONFIG.misc.SPAWN_PADDING;
+
+        if (dz < -farFrontThreshold || dz > farBackThreshold) {
+            bb.position.z = camZ - (CONFIG.misc.VISIBLE_DEPTH + Math.random() * CONFIG.misc.SPAWN_PADDING);
+            const w = bb.geometry.parameters.width;
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + w / 2 + 10;
+            bb.position.x = side * (minX + Math.random() * 80);
+            bb.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+            bb.material.color.setHex(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
+            bb.material.opacity = 0.15 + Math.random()*0.3;
+            bb.position.y = CONFIG.camera.BASE_HEIGHT + (Math.random() - 0.5) * 250;
+        }
+    });
+    // carsX are not recycled in the same way; they wrap around their X path and Z is tied to camera.
+}
+
+/* ---------- ANIMATE ---------- */
+function animate(){
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    const t = clock.getElapsedTime();
+
+    camera.position.z -= CONFIG.camera.SPEED * delta;
+
+    // Camera X-sway logic (based on Z-axis cars)
+    let closestLeadCarX = null; let minDzAbs = Infinity;
+    for(let i=0;i<carsZ.length;i++){ const c=carsZ[i]; const dz=c.position.z - camera.position.z; // carsZ
+        if(dz < -CONFIG.camera.MIN_LEAD_CAR_DISTANCE && dz > -CONFIG.camera.MAX_LEAD_CAR_DISTANCE){
+            if(Math.abs(dz) < minDzAbs){ minDzAbs = Math.abs(dz); closestLeadCarX = c.position.x; } } }
+    let leadCarInfluenceX = 0; if(closestLeadCarX !== null){ leadCarInfluenceX = closestLeadCarX * 0.7; }
+    const lerpFactorCorrection = delta * 60;
+    currentTrackedCarX += (leadCarInfluenceX - currentTrackedCarX) * CONFIG.camera.X_TARGET_LERP_FACTOR * lerpFactorCorrection;
+    let finalCameraTargetX = currentTrackedCarX;
+    finalCameraTargetX += Math.sin(t * CONFIG.camera.SWAY_FREQUENCY) * CONFIG.camera.SWAY_AMPLITUDE;
+    camera.position.x += (finalCameraTargetX - camera.position.x) * CONFIG.camera.X_POS_LERP_FACTOR * lerpFactorCorrection;
+    camera.position.y = CONFIG.camera.BASE_HEIGHT + Math.sin(t*0.6)*2;
+    const bankAmount = (finalCameraTargetX - camera.position.x) * 0.005;
+    camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, -bankAmount, CONFIG.camera.BANK_LERP_FACTOR * lerpFactorCorrection);
+    camera.lookAt(camera.position.x, camera.position.y-3, camera.position.z-100);
+
+    // Animate Z-axis cars
+    carsZ.forEach(c => c.position.z -= c.userData.speed * delta); // carsZ
+
+    // Animate X-axis cars
+    carsX.forEach(c => {
+        c.position.x += c.userData.speedX * delta;
+        // Update Z position to keep it relative to camera for the junction effect
+        c.position.z = camera.position.z
+                       + CONFIG.trafficX.JUNCTION_Z_OFFSETS[c.userData.junctionIndex]
+                       + c.userData.junctionZDepthVariation;
+
+        // Wrap X-position
+        const halfXTravel = CONFIG.trafficX.JUNCTION_X_TRAVEL_WIDTH / 2;
+        if (c.userData.speedX > 0 && c.position.x > halfXTravel) {
+            c.position.x = -halfXTravel;
+        } else if (c.userData.speedX < 0 && c.position.x < -halfXTravel) {
+            c.position.x = halfXTravel;
+        }
+    });
+
+
+    // Neon flickering
+    [...buildings,...billboards].forEach(obj=>{
+        if (obj.userData && obj.userData.baseSegment) {
+             obj.userData.baseSegment.children?.forEach(n=>{
+                if(n.material && n.material.opacity !== undefined){
+                    if (Math.random() < 0.008) n.material.opacity = Math.random() * 0.3 + 0.1;
+                    else if (Math.random() < 0.012) n.material.opacity = Math.random() * 0.5 + 0.5;
+                }
+            });
+        } else if (obj.material && obj.material.opacity !== undefined && obj.isMesh) {
+            if(Math.random()<0.01) obj.material.opacity = 0.15 + Math.random()*0.3;
+        }
+    });
+
+    // Rain animation
+    if(rain && CONFIG.effects.RAIN_FADE_PERIOD > 0){
+        const sineWave = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / CONFIG.effects.RAIN_FADE_PERIOD));
+        const minOpacity = CONFIG.effects.RAIN_MIN_OPACITY_FACTOR * CONFIG.effects.RAIN_MAX_OPACITY;
+        const maxOpacityAboveMin = CONFIG.effects.RAIN_MAX_OPACITY - minOpacity;
+        rain.material.opacity = minOpacity + maxOpacityAboveMin * sineWave;
+    }
+    const currentCamZ = camera.position.z; const rainRecycleYThreshold = -150;
+    for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){
+        const particleZ = rainPositions[i*3+2]; const dzToCamera = particleZ - currentCamZ;
+        if (dzToCamera < 0 && dzToCamera > -CONFIG.effects.RAIN_CULL_DISTANCE_Z) { rainPositions[i*3+1] = rainRecycleYThreshold - 100; }
+        else { rainPositions[i*3+1] -= CONFIG.effects.RAIN_SPEED * delta; }
+        if(rainPositions[i*3+1] < rainRecycleYThreshold){
+            rainPositions[i*3+1] = CONFIG.camera.BASE_HEIGHT + 150 + Math.random()*300;
+            const zOffsetRange = CONFIG.misc.VISIBLE_DEPTH - CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA;
+            const randomZOffset = (zOffsetRange > 0) ? Math.random() * zOffsetRange : 0;
+            rainPositions[i*3+2] = currentCamZ - (CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA + randomZOffset);
+        }
+    }
+    if(rain) rain.geometry.attributes.position.needsUpdate=true;
+
+    recycle();
+    composer.render();
+}
+
+/* ---------- RESIZE ---------- */
+function onResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); composer.setSize(window.innerWidth,window.innerHeight);}
+</script>
+</body>
+</html>
