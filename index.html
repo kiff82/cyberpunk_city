@@ -31,6 +31,9 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { setupBasicLights } from "./src/environment.js";
+import { createSimpleBuilding } from "./src/buildings.js";
+import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
 const CONFIG={
@@ -144,10 +147,7 @@ function init(){
     );
     composer.addPass(bloomPass);
 
-    scene.add(new THREE.AmbientLight(0x505060, 1.0)); // Increased intensity and slightly lighter color
-    const dir=new THREE.DirectionalLight(0xffaa77, 0.5); // Increased intensity
-    dir.position.set(0, -0.5, 0.5);
-    scene.add(dir);
+    setupBasicLights(scene);
 
     clock=new THREE.Clock();
 
@@ -157,6 +157,15 @@ function init(){
     createBillboards();
     createLargeEmissiveScreen();
     createRain();
+
+    const extraBuilding = createSimpleBuilding();
+    extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
+    scene.add(extraBuilding);
+    buildings.push(extraBuilding);
+
+    const demoCar = createSimpleCar();
+    demoCar.position.set(0, 5, -50);
+    scene.add(demoCar);
 
     window.addEventListener('resize',onResize);
     animate();
