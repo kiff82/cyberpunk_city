@@ -58,7 +58,8 @@ const CONFIG={
         CAR_TYPES: ['normal', 'van', 'sporty', 'bus', 'hover_low', 'suv', 'police'],
         Y_SPREAD_AROUND_CAMERA: 40,
         LANE_VERTICAL_SEPARATION: 60,
-        LANE_Y_SPREAD_FACTOR: 0.4
+        LANE_Y_SPREAD_FACTOR: 0.4,
+        NUM_LANES_PER_DIRECTION: 3 // New: number of stacked lanes per direction
     },
     trafficX: { // New: Configuration for X-axis traffic
         NUM_JUNCTIONS: 3,
@@ -270,11 +271,17 @@ function createBuilding(zPos=null){
         antenna.position.y = yCursor + antH/2;
         g.add(antenna);
     }
+    const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
     if (baseSegment) {
-        addNeons(baseSegment, baseSegment.geometry.parameters.width, baseSegment.geometry.parameters.depth, baseSegment.geometry.parameters.height);
+        addNeons(
+            baseSegment,
+            baseSegment.geometry.parameters.width,
+            baseSegment.geometry.parameters.depth,
+            baseSegment.geometry.parameters.height,
+            foundationHeight
+        );
     }
     // Extend the building downward so the ground is never visible
-    const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
     const foundationGeo = new THREE.BoxGeometry(maxW * 0.9, foundationHeight, maxD * 0.9);
     const foundationMat = new THREE.MeshStandardMaterial({
         color: baseSegment ? baseSegment.material.color.clone() : new THREE.Color(0x333333),
@@ -294,10 +301,11 @@ function createBuilding(zPos=null){
     );
     g.userData.base={w:maxW,d:maxD,h:yCursor};
     g.userData.baseSegment = baseSegment;
+    g.userData.foundationHeight = foundationHeight;
     g.userData.districtIndex = districtIndex;
     return g;
 }
-function addNeons(parent,w,d,h_geom){
+function addNeons(parent,w,d,h_geom,foundationHeight=0){
     while(parent.children.length > 0){
         const c=parent.children[0];
         parent.remove(c);
@@ -318,7 +326,9 @@ function addNeons(parent,w,d,h_geom){
             blending:THREE.AdditiveBlending
         });
         const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
-        sign.position.y=(Math.random()-0.5)*(h_geom*0.85);
+        const upper = (h_geom * 0.85) / 2;
+        const lower = -foundationHeight;
+        sign.position.y = lower + Math.random() * (upper - lower);
         const off=0.11;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
@@ -488,10 +498,11 @@ function createZAxisVehicle(zPos = null) {
     // Y Position (Z-axis traffic)
     let vehicleY;
     const ySpreadInLane = (Math.random() - 0.5) * config.Y_SPREAD_AROUND_CAMERA * config.LANE_Y_SPREAD_FACTOR;
+    const laneIdx = Math.floor(Math.random() * config.NUM_LANES_PER_DIRECTION);
     if (g.userData.speed < 0) { // Oncoming traffic
-        vehicleY = CONFIG.camera.BASE_HEIGHT + config.LANE_VERTICAL_SEPARATION + ySpreadInLane;
+        vehicleY = CONFIG.camera.BASE_HEIGHT + (laneIdx + 1) * config.LANE_VERTICAL_SEPARATION + ySpreadInLane;
     } else { // Outgoing traffic
-        vehicleY = CONFIG.camera.BASE_HEIGHT + ySpreadInLane;
+        vehicleY = CONFIG.camera.BASE_HEIGHT - laneIdx * config.LANE_VERTICAL_SEPARATION + ySpreadInLane;
     }
 
     // Initial X, Z position (Z-axis traffic)
@@ -654,10 +665,13 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             b.userData.districtIndex = districtIndex;
 
             if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
-                addNeons(b.userData.baseSegment,
-                         b.userData.baseSegment.geometry.parameters.width,
-                         b.userData.baseSegment.geometry.parameters.depth,
-                         b.userData.baseSegment.geometry.parameters.height);
+                addNeons(
+                    b.userData.baseSegment,
+                    b.userData.baseSegment.geometry.parameters.width,
+                    b.userData.baseSegment.geometry.parameters.depth,
+                    b.userData.baseSegment.geometry.parameters.height,
+                    b.userData.foundationHeight ?? (CONFIG.camera.BASE_HEIGHT + 300)
+                );
             }
         }
     });
