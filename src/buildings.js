@@ -34,7 +34,7 @@ export function createSimpleBuilding(options = {}) {
     return group;
 }
 
-function addOfficeWindows(target, width, height, depth) {
+export function addOfficeWindows(target, width, height, depth) {
     const litMat = new THREE.MeshBasicMaterial({
         color: 0xffeeaa,
         toneMapped: false
