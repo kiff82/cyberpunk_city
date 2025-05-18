@@ -119,24 +119,50 @@ const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ,
 let rain, rainPositions;
 let currentTrackedCarX = 0;
 const commercialVideo = document.createElement('video');
-// List any video files you want to use for the billboard animation
-// and one will be chosen at random each time the page loads.
-const commercialVideoFiles = [
-    './assets/megacorp_commercial/my_video.mp4',
-    './assets/megacorp_commercial/mega_corp_commercial_1.mp4'
+// Commercial videos for the neon billboard come from the
+// assets/megacorp_commercial directory. Any MP4 files placed there will be
+// rotated automatically. The list is refreshed each time a clip finishes,
+// so new files dropped into the folder start appearing without reloading
+// the page.
+let commercialVideoFiles = [
+    './assets/megacorp_commercial/mega_corp_commercial_2.mp4'
 ];
-commercialVideo.src = commercialVideoFiles[
-    Math.floor(Math.random() * commercialVideoFiles.length)
-];
-commercialVideo.loop = true;
+
+async function loadCommercialVideoList(){
+    try{
+        const res = await fetch('./assets/megacorp_commercial/');
+        if(!res.ok) throw new Error('directory request failed');
+        const text = await res.text();
+        const regex = /href="([^\"]+\.mp4)"/gi;
+        const files = [];
+        let match;
+        while((match = regex.exec(text))) {
+            const file = match[1].split('/').pop();
+            files.push(`./assets/megacorp_commercial/${file}`);
+        }
+        if(files.length) commercialVideoFiles = files;
+    } catch(err){
+        console.warn('Could not update commercial video list:', err);
+    }
+}
+
+async function playRandomCommercial(){
+    await loadCommercialVideoList();
+    const file = commercialVideoFiles[Math.floor(Math.random()*commercialVideoFiles.length)];
+    commercialVideo.src = file;
+    commercialVideo.load();
+    commercialVideo.play().catch(err => {
+        console.warn('Commercial video failed to autoplay:', err);
+    });
+}
+
+commercialVideo.loop = false;
 commercialVideo.muted = true;
 commercialVideo.playsInline = true;
 commercialVideo.autoplay = true;
 commercialVideo.crossOrigin = 'anonymous';
-commercialVideo.load();
-commercialVideo.play().catch(err => {
-    console.warn('Commercial video failed to autoplay:', err);
-});
+commercialVideo.addEventListener('ended', playRandomCommercial);
+playRandomCommercial();
 const commercialTexture = new THREE.VideoTexture(commercialVideo);
 commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
 commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
