@@ -41,7 +41,7 @@ const CONFIG={
         NUM_BUILDINGS:150,
         CITY_RADIUS:700,
         CORRIDOR_WIDTH:120,
-        BUILDING_MIN_Y_OFFSET: 80,
+        BUILDING_MIN_Y_OFFSET: 0,
         BUILDING_Y_RANDOM_RANGE: 120,
         BUILDING_MATERIAL_PRESETS: [ // Made base colors slightly lighter
             { name: "DarkConcrete", baseColor: 0x202025, roughness: 0.95, metalness: 0.15 },
@@ -324,6 +324,7 @@ function createBuilding(zPos=null){
     const foundation = new THREE.Mesh(foundationGeo, foundationMat);
     foundation.position.y = -foundationHeight / 2;
     g.add(foundation);
+    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9);
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
