@@ -52,7 +52,7 @@ export function addOfficeWindows(target, width, height, depth) {
     const windowGeo = WINDOW_GEO;
     const spacingX = 5;
     const spacingY = 4;
-    const margin = 5;
+    const margin = 1; // reduced margin so windows start closer to the bottom
     const cols = Math.floor((width - margin * 2) / spacingX);
     const rows = Math.floor((height - margin * 2) / spacingY);
 
