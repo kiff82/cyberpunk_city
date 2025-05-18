@@ -106,7 +106,7 @@ const CONFIG={
         RAIN_FADE_PERIOD: 0
     },
     misc:{
-        VISIBLE_DEPTH:800,
+        VISIBLE_DEPTH:1200,
         SPAWN_PADDING:300,
         NEON_COLORS:[
             0xff4400,0x00aaff,0xffdd33,0xff2222,0xcc00ff,0x00dd88,0xeeeeff,
@@ -859,6 +859,37 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
     // carsX are not recycled in the same way; they wrap around their X path and Z is tied to camera.
 }
 
+function applyFade(obj, fadeFactor){
+    obj.traverse(child=>{
+        if(child.material && child.material.opacity!==undefined){
+            if(child.material.userData.originalOpacity===undefined){
+                child.material.userData.originalOpacity = child.material.opacity;
+            }
+            child.material.transparent = true;
+            child.material.opacity = child.material.userData.originalOpacity * fadeFactor;
+        }
+    });
+}
+
+function updateFades(){
+    const camZ = camera.position.z;
+    const fadeStart = -CONFIG.misc.VISIBLE_DEPTH - CONFIG.misc.SPAWN_PADDING;
+    const fadeEnd = -CONFIG.misc.VISIBLE_DEPTH;
+    const fadeRange = fadeEnd - fadeStart;
+
+    buildings.forEach(b=>{
+        const dz = b.position.z - camZ;
+        const f = THREE.MathUtils.clamp((dz - fadeStart) / fadeRange, 0, 1);
+        applyFade(b, f);
+    });
+
+    [...carsZ, ...carsX].forEach(c=>{
+        const dz = c.position.z - camZ;
+        const f = THREE.MathUtils.clamp((dz - fadeStart) / fadeRange, 0, 1);
+        applyFade(c, f);
+    });
+}
+
 /* ---------- ANIMATE ---------- */
 function animate(){
     requestAnimationFrame(animate);
@@ -902,6 +933,8 @@ function animate(){
             c.position.x = halfXTravel;
         }
     });
+
+    updateFades();
 
 
     // Neon flickering
