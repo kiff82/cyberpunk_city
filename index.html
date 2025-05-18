@@ -118,6 +118,8 @@ let scene,camera,renderer,composer,clock;
 const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 let rain, rainPositions;
 let currentTrackedCarX = 0;
+const textureLoader = new THREE.TextureLoader();
+const commercialTexture = textureLoader.load('./assets/megacorp_comercial/mega_corp_commercial_1.gif');
 
 /* ---------- INIT ---------- */
 init();
@@ -157,6 +159,10 @@ function init(){
     createInitialZVehicles(); // Renamed
     createInitialXVehicles(); // Added
     createBillboards();
+    for(let i=0;i<3;i++){
+        const bb = createCommercialBillboard();
+        billboards.push(bb);
+    }
     createRain();
 
     const extraBuilding = createSimpleBuilding({
@@ -655,6 +661,19 @@ function createBillboard(){
         side:THREE.DoubleSide
     });
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
+    placeBillboardOnBuilding(plane, pickRandomBuilding());
+    return plane;
+}
+function createCommercialBillboard(){
+    const height = 24;
+    const width = height * 2 / 3;
+    const material = new THREE.MeshBasicMaterial({
+        map: commercialTexture,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+    });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
     placeBillboardOnBuilding(plane, pickRandomBuilding());
     return plane;
 }
