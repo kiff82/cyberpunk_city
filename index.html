@@ -52,7 +52,8 @@ const CONFIG={
         GREEBLE_DENSITY: 0.1,
         DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333],
         DISTRICT_LENGTH: 800,
-        DARK_MIDDLE_PROBABILITY: 0.4
+        DARK_MIDDLE_PROBABILITY: 0.4,
+        OFFICE_LIGHT_PROBABILITY: 0.15
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
         NUM_CARS:50,
@@ -184,7 +185,7 @@ function init(){
         roughness: 0.85,
         metalness: 0.6,
         officeLights: true,
-        litProbability: 0.3
+        litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY
     });
     extraBuilding.userData.base = { w: 40, d: 40, h: 150 };
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
@@ -297,7 +298,7 @@ function createBuilding(zPos=null){
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(!useCylinder){
-            const litProbability = (s === darkSegmentIndex) ? 0 : 0.3;
+            const litProbability = (s === darkSegmentIndex) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
             addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d, {litProbability});
         }
         if(s===0) baseSegment = segmentMesh;
@@ -349,7 +350,7 @@ function createBuilding(zPos=null){
     const foundation = new THREE.Mesh(foundationGeo, foundationMat);
     foundation.position.y = -foundationHeight / 2;
     g.add(foundation);
-    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: 0.3});
+    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY});
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
@@ -698,7 +699,7 @@ function createBillboard(){
     return plane;
 }
 function createCommercialBillboard(){
-    const height = 24;
+    const height = 36;
     const width = height * COMMERCIAL_ASPECT_RATIO;
 
     const video = document.createElement('video');
@@ -781,7 +782,7 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                     dims.w,
                     dims.h,
                     dims.d,
-                    {litProbability: 0.3}
+                    {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY}
                 );
             }
         }

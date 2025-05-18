@@ -58,7 +58,7 @@ export function addOfficeWindows(target, width, height, depth, options = {}) {
     const cols = Math.floor((width - margin * 2) / spacingX);
     const rows = Math.floor((height - margin * 2) / spacingY);
 
-    const litProbability = options.litProbability ?? 0.3;
+    const litProbability = options.litProbability ?? 0.15;
 
     const litMatrices = [];
     const darkMatrices = [];
