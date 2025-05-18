@@ -174,8 +174,8 @@ function init(){
     createInitialZVehicles(); // Renamed
     createInitialXVehicles(); // Added
     createBillboards();
-    // Increase the number of commercial billboards so video ads appear more frequently
-    for(let i=0;i<30;i++){
+    // Decrease the number of commercial billboards from 30 to reduce resource usage
+    for(let i=0;i<20;i++){
         const bb = createCommercialBillboard();
         billboards.push(bb);
     }
@@ -740,11 +740,9 @@ function createCommercialBillboard(){
     const plane1 = createVideoMesh();
     group.add(plane1);
 
-    if (Math.random() < 0.5) {
-        const plane2 = createVideoMesh();
-        plane2.position.y = -height;
-        group.add(plane2);
-    }
+    // Previously a second video plane could randomly be added beneath the first
+    // billboard. Removing this keeps each commercial sign to a single video,
+    // preventing stacked billboards and lowering GPU load.
 
     placeBillboardOnBuilding(group, building, face);
     return group;
