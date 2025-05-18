@@ -167,7 +167,20 @@ function handleInitialVideoLoad(){
     });
     init();
 }
+function handleVideoError(e){
+    console.warn('Commercial video failed to load:', e);
+    commercialVideo.removeEventListener('loadeddata', handleInitialVideoLoad);
+    const placeholder = document.createElement('canvas');
+    placeholder.width = placeholder.height = 1;
+    const ctx = placeholder.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,1,1);
+    commercialTexture.image = placeholder;
+    commercialTexture.needsUpdate = true;
+    init();
+}
 commercialVideo.addEventListener('loadeddata', handleInitialVideoLoad);
+commercialVideo.addEventListener('error', handleVideoError);
 commercialVideo.load();
 
 /* ---------- INIT ---------- */
