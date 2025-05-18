@@ -126,7 +126,7 @@ function init(){
     scene.background=new THREE.Color(0x060812);
     scene.fog=new THREE.FogExp2(0x101520, 0.0012);
 
-    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,CONFIG.misc.VISIBLE_DEPTH+CONFIG.misc.SPAWN_PADDING+400);
+    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,1,CONFIG.misc.VISIBLE_DEPTH+CONFIG.misc.SPAWN_PADDING+400);
     camera.position.set(0,CONFIG.camera.BASE_HEIGHT,0);
     currentTrackedCarX = camera.position.x;
 
