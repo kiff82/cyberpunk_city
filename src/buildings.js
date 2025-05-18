@@ -17,7 +17,11 @@ const CYBERPUNK_BUILDING_MATERIALS = [
     { color: 0x181818, roughness: 0.4,  metalness: 0.5  }, // Coated panel
     { color: 0x202228, roughness: 0.85, metalness: 0.7  }, // Heavy duty structure
     { color: 0x1a1a1a, roughness: 0.5, metalness: 0.3  }, // Dark stone
-    { color: 0x2a2e32, roughness: 0.4, metalness: 0.9  }  // Tinted glass
+    { color: 0x2a2e32, roughness: 0.4, metalness: 0.9  }, // Tinted glass
+    { color: 0x2f2a32, roughness: 0.6, metalness: 0.8  }, // Neon steel
+    { color: 0x2d3d3f, roughness: 0.7, metalness: 0.6  }, // Oxidized copper
+    { color: 0x1e1f27, roughness: 0.9, metalness: 0.2  }, // Wet asphalt
+    { color: 0x333333, roughness: 0.1, metalness: 1.0  }  // Reflective glass
 ];
 
 export function createSimpleBuilding(options = {}) {
