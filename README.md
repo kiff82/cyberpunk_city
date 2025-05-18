@@ -46,10 +46,10 @@ Reload the page after editing the file to see the change.
 ## Customizing the commercial video
 
 The neon billboard loads videos from `assets/megacorp_commercial`.
-List any number of MP4 files in that directory and they will play one after the
-other on a loop. The first video is chosen at random when the page loads.
-You can replace the provided placeholders with your own clips. Edit
-`commercialVideoFiles` in `index.html` if you use different filenames.
+Each billboard randomly selects one of those MP4 files when it is created and
+loops that clip independently. Replace the provided placeholders with your own
+clips if desired. Edit `commercialVideoFiles` in `index.html` when using
+different filenames.
 
 
 ## Running on GitHub Pages
