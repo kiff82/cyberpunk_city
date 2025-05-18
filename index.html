@@ -32,7 +32,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding, addOfficeWindows } from "./src/buildings.js";
+import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
@@ -145,6 +145,11 @@ commercialVideo.load();
 commercialVideo.play().catch(err => {
     console.warn('Commercial video failed to autoplay:', err);
 });
+let commercialAspectRatio = 2 / 3;
+commercialVideo.addEventListener('loadedmetadata', () => {
+    commercialAspectRatio = commercialVideo.videoWidth / commercialVideo.videoHeight;
+    init();
+});
 const commercialTexture = new THREE.VideoTexture(commercialVideo);
 commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
 commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -153,7 +158,6 @@ commercialTexture.magFilter = THREE.LinearFilter;
 commercialTexture.generateMipmaps = false;
 
 /* ---------- INIT ---------- */
-init();
 
 function init(){
     scene=new THREE.Scene();
@@ -190,7 +194,8 @@ function init(){
     createInitialZVehicles(); // Renamed
     createInitialXVehicles(); // Added
     createBillboards();
-    for(let i=0;i<3;i++){
+    // Increase the number of commercial billboards so video ads appear more frequently
+    for(let i=0;i<10;i++){
         const bb = createCommercialBillboard();
         billboards.push(bb);
     }
@@ -681,6 +686,24 @@ function placeBillboardOnBuilding(bb, building){
         case 2: bb.position.x = dims.w/2 + off; bb.rotation.y = Math.PI/2; break;
         case 3: bb.position.x = -dims.w/2 - off; bb.rotation.y = -Math.PI/2; break;
     }
+    // Remove windows that intersect the billboard so they do not appear behind it
+    const bbBox = new THREE.Box3().setFromObject(bb);
+    const tmpMatrix = new THREE.Matrix4();
+    const tmpPos = new THREE.Vector3();
+    building.traverse(child => {
+        if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
+            for (let i = 0; i < child.count; i++) {
+                child.getMatrixAt(i, tmpMatrix);
+                tmpPos.setFromMatrixPosition(tmpMatrix);
+                tmpPos.applyMatrix4(child.matrixWorld);
+                if (bbBox.containsPoint(tmpPos)) {
+                    tmpMatrix.setPosition(9999, 9999, 9999);
+                    child.setMatrixAt(i, tmpMatrix);
+                }
+            }
+            child.instanceMatrix.needsUpdate = true;
+        }
+    });
 }
 function createBillboard(){
     const w=Math.random()*18+12, h=Math.random()*10+6;
@@ -697,7 +720,7 @@ function createBillboard(){
 }
 function createCommercialBillboard(){
     const height = 24;
-    const width = height * 2 / 3;
+    const width = height * commercialAspectRatio;
     const material = new THREE.MeshBasicMaterial({
         map: commercialTexture,
         transparent: true,
