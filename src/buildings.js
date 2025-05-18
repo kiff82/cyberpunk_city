@@ -1,5 +1,61 @@
 import * as THREE from 'three';
 
+const WINDOW_GEO = new THREE.PlaneGeometry(2, 1.5);
+const LIT_MAT = new THREE.MeshBasicMaterial({ color: 0xffeeaa, toneMapped: false });
+const DARK_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: false });
+
+export function collectOfficeWindowData(width, height, depth, offsetY = 0, dynamicFraction = 0) {
+    const spacingX = 5;
+    const spacingY = 4;
+    const margin = 5;
+    const cols = Math.floor((width - margin * 2) / spacingX);
+    const rows = Math.floor((height - margin * 2) / spacingY);
+
+    const litMatrices = [];
+    const darkMatrices = [];
+    const dynamic = [];
+    const obj = new THREE.Object3D();
+
+    for (let side = 0; side < 4; side++) {
+        for (let i = 0; i < cols; i++) {
+            for (let j = 0; j < rows; j++) {
+                const x = -width/2 + margin + i * spacingX;
+                const y = offsetY - height/2 + margin + j * spacingY;
+                obj.position.set(0,0,0);
+                obj.rotation.set(0,0,0);
+                switch (side) {
+                    case 0:
+                        obj.position.set(x, y, depth/2 + 0.01);
+                        break;
+                    case 1:
+                        obj.position.set(x, y, -depth/2 - 0.01);
+                        obj.rotation.y = Math.PI;
+                        break;
+                    case 2:
+                        obj.position.set(-width/2 - 0.01, y, x);
+                        obj.rotation.y = -Math.PI/2;
+                        break;
+                    case 3:
+                        obj.position.set(width/2 + 0.01, y, x);
+                        obj.rotation.y = Math.PI/2;
+                        break;
+                }
+                obj.updateMatrix();
+                const lit = Math.random() < 0.6;
+                if (Math.random() < dynamicFraction) {
+                    const win = new THREE.Mesh(WINDOW_GEO, lit ? LIT_MAT.clone() : DARK_MAT.clone());
+                    win.position.setFromMatrixPosition(obj.matrix);
+                    win.rotation.setFromRotationMatrix(obj.matrix);
+                    dynamic.push(win);
+                } else {
+                    (lit ? litMatrices : darkMatrices).push(obj.matrix.clone());
+                }
+            }
+        }
+    }
+    return { litMatrices, darkMatrices, dynamic };
+}
+
 const CYBERPUNK_BUILDING_MATERIALS = [
     { color: 0x202025, roughness: 0.95, metalness: 0.15 }, // Dark concrete
     { color: 0x25282a, roughness: 0.7,  metalness: 0.8  }, // Grimy metal
@@ -35,47 +91,17 @@ export function createSimpleBuilding(options = {}) {
 }
 
 export function addOfficeWindows(target, width, height, depth) {
-    const litMat = new THREE.MeshBasicMaterial({
-        color: 0xffeeaa,
-        toneMapped: false
-    });
-    const darkMat = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        toneMapped: false
-    });
-    const windowGeo = new THREE.PlaneGeometry(2, 1.5);
-    const spacingX = 5;
-    const spacingY = 4;
-    const margin = 5;
-    const cols = Math.floor((width - margin * 2) / spacingX);
-    const rows = Math.floor((height - margin * 2) / spacingY);
+    const { litMatrices, darkMatrices } =
+        collectOfficeWindowData(width, height, depth);
 
-    for (let side = 0; side < 4; side++) {
-        for (let i = 0; i < cols; i++) {
-            for (let j = 0; j < rows; j++) {
-                const mat = Math.random() < 0.6 ? litMat : darkMat;
-                const win = new THREE.Mesh(windowGeo, mat);
-                const x = -width/2 + margin + i * spacingX;
-                const y = -height/2 + margin + j * spacingY;
-                switch (side) {
-                    case 0: // front
-                        win.position.set(x, y, depth/2 + 0.01);
-                        break;
-                    case 1: // back
-                        win.position.set(x, y, -depth/2 - 0.01);
-                        win.rotation.y = Math.PI;
-                        break;
-                    case 2: // left
-                        win.position.set(-width/2 - 0.01, y, x);
-                        win.rotation.y = -Math.PI/2;
-                        break;
-                    case 3: // right
-                        win.position.set(width/2 + 0.01, y, x);
-                        win.rotation.y = Math.PI/2;
-                        break;
-                }
-                target.add(win);
-            }
-        }
+    if (litMatrices.length > 0) {
+        const inst = new THREE.InstancedMesh(WINDOW_GEO, LIT_MAT, litMatrices.length);
+        litMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
+        target.add(inst);
+    }
+    if (darkMatrices.length > 0) {
+        const inst = new THREE.InstancedMesh(WINDOW_GEO, DARK_MAT, darkMatrices.length);
+        darkMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
+        target.add(inst);
     }
 }

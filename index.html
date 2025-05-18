@@ -32,8 +32,12 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding, addOfficeWindows } from "./src/buildings.js";
+import { createSimpleBuilding, addOfficeWindows, collectOfficeWindowData } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
+
+const WINDOW_GEO = new THREE.PlaneGeometry(2, 1.5);
+const LIT_MAT = new THREE.MeshBasicMaterial({ color: 0xffeeaa, toneMapped: false });
+const DARK_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: false });
 
 /* ---------- CONFIG ---------- */
 const CONFIG={
@@ -217,6 +221,10 @@ function createBuilding(zPos=null){
     let yCursor = 0;
     let maxW = 0, maxD = 0;
     let baseSegment = null;
+    const litMatrices = [];
+    const darkMatrices = [];
+    const dynamicWindows = [];
+    const dynamicFraction = 0.02;
     const rStyle = Math.random();
     let buildingStyle;
     if(rStyle < 0.25) buildingStyle='tapered_cylinder';
@@ -256,7 +264,10 @@ function createBuilding(zPos=null){
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(!useCylinder){
-            addOfficeWindows(segmentMesh, segmentParams.w, h, segmentParams.d);
+            const data = collectOfficeWindowData(segmentParams.w, h, segmentParams.d, yCursor, dynamicFraction);
+            litMatrices.push(...data.litMatrices);
+            darkMatrices.push(...data.darkMatrices);
+            data.dynamic.forEach(w => g.add(w));
         }
         if(s===0) baseSegment = segmentMesh;
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
@@ -274,6 +285,19 @@ function createBuilding(zPos=null){
         maxW = Math.max(maxW, segmentParams.w);
         maxD = Math.max(maxD, segmentParams.d);
     }
+
+    if (litMatrices.length > 0) {
+        const instLit = new THREE.InstancedMesh(WINDOW_GEO, LIT_MAT, litMatrices.length);
+        litMatrices.forEach((m, i) => instLit.setMatrixAt(i, m));
+        g.add(instLit);
+    }
+    if (darkMatrices.length > 0) {
+        const instDark = new THREE.InstancedMesh(WINDOW_GEO, DARK_MAT, darkMatrices.length);
+        darkMatrices.forEach((m, i) => instDark.setMatrixAt(i, m));
+        g.add(instDark);
+    }
+    g.userData.dynamicWindows = dynamicWindows;
+
     if(Math.random() < 0.4){
         const antH = Math.random()*50+25;
         const antennaType = Math.random();
