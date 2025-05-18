@@ -119,12 +119,21 @@ const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ,
 let rain, rainPositions;
 let currentTrackedCarX = 0;
 const commercialVideo = document.createElement('video');
-// Updated to load a custom video file. Replace "my_video.mp4" with your
-// desired banner video if needed.
-commercialVideo.src = './assets/megacorp_commercial/my_video.mp4';
+// List any video files you want to use for the billboard animation
+// and one will be chosen at random each time the page loads.
+const commercialVideoFiles = [
+    './assets/megacorp_commercial/my_video.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_1.mp4'
+];
+commercialVideo.src = commercialVideoFiles[
+    Math.floor(Math.random() * commercialVideoFiles.length)
+];
 commercialVideo.loop = true;
 commercialVideo.muted = true;
 commercialVideo.playsInline = true;
+commercialVideo.autoplay = true;
+commercialVideo.crossOrigin = 'anonymous';
+commercialVideo.load();
 commercialVideo.play().catch(err => {
     console.warn('Commercial video failed to autoplay:', err);
 });
