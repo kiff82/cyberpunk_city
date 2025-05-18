@@ -118,8 +118,18 @@ let scene,camera,renderer,composer,clock;
 const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 let rain, rainPositions;
 let currentTrackedCarX = 0;
-const textureLoader = new THREE.TextureLoader();
-const commercialTexture = textureLoader.load('./assets/megacorp_comercial/mega_corp_commercial_1.gif');
+const commercialVideo = document.createElement('video');
+commercialVideo.src = './assets/megacorp_comercial/mega_corp_commercial_1.mp4';
+commercialVideo.loop = true;
+commercialVideo.muted = true;
+commercialVideo.playsInline = true;
+commercialVideo.play();
+const commercialTexture = new THREE.VideoTexture(commercialVideo);
+commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
+commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
+commercialTexture.minFilter = THREE.LinearFilter;
+commercialTexture.magFilter = THREE.LinearFilter;
+commercialTexture.generateMipmaps = false;
 
 /* ---------- INIT ---------- */
 init();
