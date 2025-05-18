@@ -39,13 +39,15 @@ export function createSimpleBuilding(options = {}) {
     group.add(mesh);
 
     if (options.officeLights) {
-        addOfficeWindows(group, 40, 150, 40);
+        addOfficeWindows(group, 40, 150, 40, {
+            litProbability: options.litProbability
+        });
     }
 
     return group;
 }
 
-export function addOfficeWindows(target, width, height, depth) {
+export function addOfficeWindows(target, width, height, depth, options = {}) {
     // Use shared geometry and materials instead of allocating new ones each time
     const litMat = LIT_MAT;
     const darkMat = DARK_MAT;
@@ -55,6 +57,8 @@ export function addOfficeWindows(target, width, height, depth) {
     const margin = 1; // reduced margin so windows start closer to the bottom
     const cols = Math.floor((width - margin * 2) / spacingX);
     const rows = Math.floor((height - margin * 2) / spacingY);
+
+    const litProbability = options.litProbability ?? 0.3;
 
     const litMatrices = [];
     const darkMatrices = [];
@@ -86,7 +90,7 @@ export function addOfficeWindows(target, width, height, depth) {
                 }
                 obj.updateMatrix();
                 // Reduce the percentage of lit windows so buildings appear darker
-                if (Math.random() < 0.3) {
+                if (Math.random() < litProbability) {
                     litMatrices.push(obj.matrix.clone());
                 } else {
                     darkMatrices.push(obj.matrix.clone());
