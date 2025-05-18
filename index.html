@@ -118,70 +118,22 @@ let scene,camera,renderer,composer,clock;
 const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 let rain, rainPositions;
 let currentTrackedCarX = 0;
-const commercialVideo = document.createElement('video');
 // List any video files you want to use for the billboard animation.
-// Videos will automatically cycle when each one finishes playing.
 const commercialVideoFiles = [
-    './assets/megacorp_commercial/mega_corp_commercial_2.mp4'
+    './assets/megacorp_commercial/mega_corp_commercial_1.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_2.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_3.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_4.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_5.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_6.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_7.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_8.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_9.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_10.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_11.mp4'
 ];
-let currentCommercialIndex = Math.floor(Math.random() * commercialVideoFiles.length);
-commercialVideo.src = commercialVideoFiles[currentCommercialIndex];
-commercialVideo.loop = commercialVideoFiles.length === 1;
-commercialVideo.muted = true;
-commercialVideo.playsInline = true;
-commercialVideo.autoplay = true;
-commercialVideo.crossOrigin = 'anonymous';
 
-const commercialTexture = new THREE.VideoTexture(commercialVideo);
-commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
-commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
-commercialTexture.minFilter = THREE.LinearFilter;
-commercialTexture.magFilter = THREE.LinearFilter;
-commercialTexture.generateMipmaps = false;
-
-function playNextCommercialVideo(){
-    currentCommercialIndex = (currentCommercialIndex + 1) % commercialVideoFiles.length;
-    commercialVideo.src = commercialVideoFiles[currentCommercialIndex];
-    commercialVideo.load();
-    const onLoaded = () => {
-        commercialVideo.removeEventListener('loadeddata', onLoaded);
-        commercialTexture.needsUpdate = true;
-        commercialVideo.play().catch(err => {
-            console.warn('Commercial video failed to autoplay:', err);
-        });
-    };
-    commercialVideo.addEventListener('loadeddata', onLoaded);
-}
-
-if(commercialVideoFiles.length > 1){
-    commercialVideo.addEventListener('ended', playNextCommercialVideo);
-}
-
-let commercialAspectRatio = 2 / 3;
-function handleInitialVideoLoad(){
-    commercialVideo.removeEventListener('loadeddata', handleInitialVideoLoad);
-    commercialAspectRatio = commercialVideo.videoWidth / commercialVideo.videoHeight;
-    commercialTexture.needsUpdate = true;
-    commercialVideo.play().catch(err => {
-        console.warn('Commercial video failed to autoplay:', err);
-    });
-    init();
-}
-function handleVideoError(e){
-    console.warn('Commercial video failed to load:', e);
-    commercialVideo.removeEventListener('loadeddata', handleInitialVideoLoad);
-    const placeholder = document.createElement('canvas');
-    placeholder.width = placeholder.height = 1;
-    const ctx = placeholder.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0,0,1,1);
-    commercialTexture.image = placeholder;
-    commercialTexture.needsUpdate = true;
-    init();
-}
-commercialVideo.addEventListener('loadeddata', handleInitialVideoLoad);
-commercialVideo.addEventListener('error', handleVideoError);
-commercialVideo.load();
+const COMMERCIAL_ASPECT_RATIO = 2 / 3;
 
 /* ---------- INIT ---------- */
 
@@ -221,7 +173,7 @@ function init(){
     createInitialXVehicles(); // Added
     createBillboards();
     // Increase the number of commercial billboards so video ads appear more frequently
-    for(let i=0;i<10;i++){
+    for(let i=0;i<30;i++){
         const bb = createCommercialBillboard();
         billboards.push(bb);
     }
@@ -747,9 +699,28 @@ function createBillboard(){
 }
 function createCommercialBillboard(){
     const height = 24;
-    const width = height * commercialAspectRatio;
+    const width = height * COMMERCIAL_ASPECT_RATIO;
+
+    const video = document.createElement('video');
+    video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.crossOrigin = 'anonymous';
+    video.play().catch(err => {
+        console.warn('Commercial video failed to autoplay:', err);
+    });
+
+    const texture = new THREE.VideoTexture(video);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+
     const material = new THREE.MeshBasicMaterial({
-        map: commercialTexture,
+        map: texture,
         transparent: true,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide
@@ -941,6 +912,9 @@ function animate(){
 
 /* ---------- RESIZE ---------- */
 function onResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); composer.setSize(window.innerWidth,window.innerHeight);}
+
+// Initialize scene once the module loads
+init();
 </script>
 </body>
 </html>
