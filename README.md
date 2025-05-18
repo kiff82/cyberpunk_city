@@ -43,6 +43,13 @@ CONFIG.misc.ENABLE_FLICKER = false;
 
 Reload the page after editing the file to see the change.
 
+## Customizing the commercial video
+
+The neon billboard uses the file `assets/megacorp_commercial/mega_corp_commercial_1.mp4`.
+You can replace this MP4 with your own or add additional videos in the same directory.
+After adding a new video, update the `commercialVideo.src` path in `index.html` to point
+to your file.
+
 ## Running on GitHub Pages
 
 The project works when hosted from any subdirectory, so you can serve it via GitHub Pages. Publish the repository (or a `gh-pages` branch) using GitHub Pages and visit:
