@@ -145,6 +145,11 @@ commercialVideo.load();
 commercialVideo.play().catch(err => {
     console.warn('Commercial video failed to autoplay:', err);
 });
+let commercialAspectRatio = 2 / 3;
+commercialVideo.addEventListener('loadedmetadata', () => {
+    commercialAspectRatio = commercialVideo.videoWidth / commercialVideo.videoHeight;
+    init();
+});
 const commercialTexture = new THREE.VideoTexture(commercialVideo);
 commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
 commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -153,7 +158,6 @@ commercialTexture.magFilter = THREE.LinearFilter;
 commercialTexture.generateMipmaps = false;
 
 /* ---------- INIT ---------- */
-init();
 
 function init(){
     scene=new THREE.Scene();
@@ -716,7 +720,7 @@ function createBillboard(){
 }
 function createCommercialBillboard(){
     const height = 24;
-    const width = height * 2 / 3;
+    const width = height * commercialAspectRatio;
     const material = new THREE.MeshBasicMaterial({
         map: commercialTexture,
         transparent: true,
