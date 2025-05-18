@@ -359,7 +359,8 @@ function addNeons(parent,w,d,h_geom){
         });
         const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
         sign.position.y=(Math.random()-0.5)*(h_geom*0.85);
-        const off=0.01;
+        // Slight offset to prevent z-fighting when viewed from afar
+        const off=0.05;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
     }
@@ -629,7 +630,8 @@ function placeBillboardOnBuilding(bb, building){
     bb.rotation.set(0,0,0);
     const dims = building.userData.base;
     const face = Math.floor(Math.random()*4);
-    const off = 0.01;
+    // Offset billboard slightly to avoid far distance z-fighting
+    const off = 0.05;
     bb.position.y = Math.random()*dims.h*0.8 + dims.h*0.1;
     switch(face){
         case 0: bb.position.z = dims.d/2 + off; break;
