@@ -38,7 +38,8 @@ export function createSimpleBuilding(options = {}) {
     mesh.receiveShadow = false;
     group.add(mesh);
 
-    if (options.officeLights) {
+    const windowProb = options.windowSegmentProbability ?? 1;
+    if (options.officeLights && Math.random() < windowProb) {
         addOfficeWindows(group, 40, 150, 40, {
             litProbability: options.litProbability
         });

@@ -53,7 +53,8 @@ const CONFIG={
         DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333],
         DISTRICT_LENGTH: 800,
         DARK_MIDDLE_PROBABILITY: 0.4,
-        OFFICE_LIGHT_PROBABILITY: 0.15
+        OFFICE_LIGHT_PROBABILITY: 0.05,
+        WINDOW_SEGMENT_PROBABILITY: 0.7
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
         NUM_CARS:50,
@@ -105,7 +106,7 @@ const CONFIG={
         RAIN_FADE_PERIOD: 0
     },
     misc:{
-        VISIBLE_DEPTH:1200,
+        VISIBLE_DEPTH:800,
         SPAWN_PADDING:300,
         NEON_COLORS:[
             0xff4400,0x00aaff,0xffdd33,0xff2222,0xcc00ff,0x00dd88,0xeeeeff,
@@ -185,7 +186,8 @@ function init(){
         roughness: 0.85,
         metalness: 0.6,
         officeLights: true,
-        litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY
+        litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY,
+        windowSegmentProbability: CONFIG.city.WINDOW_SEGMENT_PROBABILITY
     });
     extraBuilding.userData.base = { w: 40, d: 40, h: 150 };
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
@@ -297,7 +299,7 @@ function createBuilding(zPos=null){
         segmentMesh.position.y = yCursor + dims.h/2;
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
-        if(!useCylinder){
+        if(!useCylinder && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
             const litProbability = (s === darkSegmentIndex) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
             addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d, {litProbability});
         }
@@ -350,7 +352,9 @@ function createBuilding(zPos=null){
     const foundation = new THREE.Mesh(foundationGeo, foundationMat);
     foundation.position.y = -foundationHeight / 2;
     g.add(foundation);
-    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY});
+    if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
+        addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY});
+    }
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
@@ -792,13 +796,15 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                 const dims = getMeshDimensions(b.userData.baseSegment);
                 addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h);
                 // Restore office windows that were removed when adding new neons
-                addOfficeWindows(
-                    b.userData.baseSegment,
-                    dims.w,
-                    dims.h,
-                    dims.d,
-                    {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY}
-                );
+                if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
+                    addOfficeWindows(
+                        b.userData.baseSegment,
+                        dims.w,
+                        dims.h,
+                        dims.d,
+                        {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY}
+                    );
+                }
             }
         }
     });
