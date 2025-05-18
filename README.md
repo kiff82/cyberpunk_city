@@ -45,8 +45,8 @@ Reload the page after editing the file to see the change.
 
 ## Customizing the commercial video
 
-The neon billboard uses the file `assets/megacorp_commercial/mega_corp_commercial_1.mp4`.
-You can replace this MP4 with your own or add additional videos in the same directory.
+The neon billboard now loads `assets/megacorp_commercial/my_video.mp4` by default.
+You can replace this placeholder MP4 with your own or add additional videos in the same directory.
 After adding a new video, update the `commercialVideo.src` path in `index.html` to point
 to your file.
 
