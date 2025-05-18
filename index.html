@@ -51,7 +51,8 @@ const CONFIG={
         ],
         GREEBLE_DENSITY: 0.1,
         DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333],
-        DISTRICT_LENGTH: 800
+        DISTRICT_LENGTH: 800,
+        DARK_MIDDLE_PROBABILITY: 0.4
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
         NUM_CARS:50,
@@ -162,7 +163,8 @@ function init(){
         color: 0x222233,
         roughness: 0.85,
         metalness: 0.6,
-        officeLights: true
+        officeLights: true,
+        litProbability: 0.3
     });
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
     scene.add(extraBuilding);
@@ -225,6 +227,7 @@ function createBuilding(zPos=null){
     const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
     const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
     const segments = Math.floor(Math.random()*4)+2;
+    const darkSegmentIndex = Math.random() < CONFIG.city.DARK_MIDDLE_PROBABILITY ? Math.floor(segments/2) : -1;
     let currW = Math.random()*70+30;
     let currD = Math.random()*70+30;
     let yCursor = 0;
@@ -273,7 +276,8 @@ function createBuilding(zPos=null){
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(!useCylinder){
-            addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d);
+            const litProbability = (s === darkSegmentIndex) ? 0 : 0.3;
+            addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d, {litProbability});
         }
         if(s===0) baseSegment = segmentMesh;
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
@@ -324,7 +328,7 @@ function createBuilding(zPos=null){
     const foundation = new THREE.Mesh(foundationGeo, foundationMat);
     foundation.position.y = -foundationHeight / 2;
     g.add(foundation);
-    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9);
+    addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: 0.3});
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
     const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
@@ -727,7 +731,8 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                     b.userData.baseSegment,
                     dims.w,
                     dims.h,
-                    dims.d
+                    dims.d,
+                    {litProbability: 0.3}
                 );
             }
         }
