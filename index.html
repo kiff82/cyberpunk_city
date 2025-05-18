@@ -135,6 +135,15 @@ const commercialVideoFiles = [
     './assets/megacorp_commercial/mega_corp_commercial_11.mp4'
 ];
 
+// Static PNG images for billboards
+const commercialImageFiles = [
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_1.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_2.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_3.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk_fashion_4.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_5.png'
+];
+
 const COMMERCIAL_ASPECT_RATIO = 2 / 3;
 
 /* ---------- INIT ---------- */
@@ -174,10 +183,12 @@ function init(){
     createInitialZVehicles(); // Renamed
     createInitialXVehicles(); // Added
     createBillboards();
-    // Decrease the number of commercial billboards from 30 to reduce resource usage
-    for(let i=0;i<20;i++){
-        const bb = createCommercialBillboard();
-        billboards.push(bb);
+    // Create 10 video billboards and 10 image billboards
+    for(let i=0;i<10;i++){
+        billboards.push(createCommercialBillboard('video'));
+    }
+    for(let i=0;i<10;i++){
+        billboards.push(createCommercialBillboard('image'));
     }
     createRain();
 
@@ -703,14 +714,21 @@ function createBillboard(){
     placeBillboardOnBuilding(plane, pickRandomBuilding());
     return plane;
 }
-function createCommercialBillboard(){
+function createCommercialBillboard(type = 'video'){
     const building = pickRandomBuilding();
     const face = Math.floor(Math.random() * 4);
     const dims = building.userData.base;
     const targetWidth = (face === 0 || face === 1) ? dims.w : dims.d;
     const height = targetWidth / COMMERCIAL_ASPECT_RATIO;
 
-    function createVideoMesh() {
+    function createMediaMesh() {
+        if (type === 'image') {
+            const loader = new THREE.TextureLoader();
+            const tex = loader.load(commercialImageFiles[Math.floor(Math.random() * commercialImageFiles.length)]);
+            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+            return new THREE.Mesh(new THREE.PlaneGeometry(targetWidth, height), mat);
+        }
+
         const video = document.createElement('video');
         video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
         video.loop = true;
@@ -729,15 +747,12 @@ function createCommercialBillboard(){
         texture.magFilter = THREE.LinearFilter;
         texture.generateMipmaps = false;
 
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            side: THREE.DoubleSide
-        });
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         return new THREE.Mesh(new THREE.PlaneGeometry(targetWidth, height), material);
     }
 
     const group = new THREE.Group();
-    const plane1 = createVideoMesh();
+    const plane1 = createMediaMesh();
     group.add(plane1);
 
     // Previously a second video plane could randomly be added beneath the first
