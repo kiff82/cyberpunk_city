@@ -61,7 +61,7 @@ const CONFIG={
         WINDOW_SEGMENT_PROBABILITY: 0.7
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
-        NUM_CARS:50,
+        NUM_CARS:80,
         SPEED_MIN:30,
         SPEED_MAX:90,
         TRUCK_PROBABILITY: 0.15,
@@ -72,7 +72,7 @@ const CONFIG={
     },
     trafficX: { // New: Configuration for X-axis traffic
         NUM_JUNCTIONS: 3,
-        CARS_PER_JUNCTION: 5,
+        CARS_PER_JUNCTION: 8,
         JUNCTION_Z_OFFSETS: [-200, -450, -700], // Z distance from camera for each junction layer
         JUNCTION_X_TRAVEL_WIDTH: 1000,      // How far cars travel left/right before wrapping
         JUNCTION_Z_DEPTH_VARIATION: 30,     // Small random Z spread within a junction layer
@@ -111,7 +111,7 @@ const CONFIG={
     },
     misc:{
         VISIBLE_DEPTH:1200,
-        SPAWN_PADDING:300,
+        SPAWN_PADDING:400,
         NEON_COLORS:[
             0xff4400,0x00aaff,0xffdd33,0xff2222,0xcc00ff,0x00dd88,0xeeeeff,
             0x00ff66,0xff00ff,0x00ffff,0xff8800
@@ -165,7 +165,12 @@ function init(){
     scene.background=new THREE.Color(0x060812);
     scene.fog=new THREE.FogExp2(0x101520, 0.0012);
 
-    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,1,CONFIG.misc.VISIBLE_DEPTH+CONFIG.misc.SPAWN_PADDING+400);
+    camera=new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth/window.innerHeight,
+        1,
+        CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING * 2 + 400
+    );
     camera.position.set(0,CONFIG.camera.BASE_HEIGHT,0);
     currentTrackedCarX = camera.position.x;
 
@@ -270,7 +275,12 @@ function getMeshDimensions(mesh) {
 }
 function createBuilding(zPos=null){
     const g = new THREE.Group();
-    const buildingZ = zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH);
+    const buildingZ = zPos ?? (
+        camera.position.z - (
+            CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING +
+            Math.random() * CONFIG.misc.SPAWN_PADDING
+        )
+    );
     const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
     const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
     const segments = Math.floor(Math.random()*4)+2;
@@ -836,11 +846,14 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
 
     buildings.forEach(b => {
         const dz = b.position.z - camZ;
-        const farFrontThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING;
+        const farFrontThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING * 2;
         const farBackThreshold = CONFIG.misc.SPAWN_PADDING;
 
         if (dz < -farFrontThreshold || dz > farBackThreshold) {
-            b.position.z = camZ - (CONFIG.misc.VISIBLE_DEPTH + Math.random() * CONFIG.misc.SPAWN_PADDING);
+            b.position.z = camZ - (
+                CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING +
+                Math.random() * CONFIG.misc.SPAWN_PADDING
+            );
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
@@ -922,7 +935,7 @@ function applyFade(obj, fadeFactor){
 
 function updateFades(){
     const camZ = camera.position.z;
-    const fadeStart = -CONFIG.misc.VISIBLE_DEPTH - CONFIG.misc.SPAWN_PADDING;
+    const fadeStart = -CONFIG.misc.VISIBLE_DEPTH - CONFIG.misc.SPAWN_PADDING * 2;
     const fadeEnd = -CONFIG.misc.VISIBLE_DEPTH;
     const fadeRange = fadeEnd - fadeStart;
 
