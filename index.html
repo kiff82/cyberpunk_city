@@ -688,6 +688,13 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                          b.userData.baseSegment.geometry.parameters.width,
                          b.userData.baseSegment.geometry.parameters.depth,
                          b.userData.baseSegment.geometry.parameters.height);
+                // Restore office windows that were removed when adding new neons
+                addOfficeWindows(
+                    b.userData.baseSegment,
+                    b.userData.baseSegment.geometry.parameters.width,
+                    b.userData.baseSegment.geometry.parameters.height,
+                    b.userData.baseSegment.geometry.parameters.depth
+                );
             }
         }
     });
