@@ -119,19 +119,28 @@ const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ,
 let rain, rainPositions;
 let currentTrackedCarX = 0;
 const commercialVideo = document.createElement('video');
-// List any video files you want to use for the billboard animation
-// and one will be chosen at random each time the page loads.
+// List any video files you want to use for the billboard animation.
+// Videos will automatically cycle when each one finishes playing.
 const commercialVideoFiles = [
     './assets/megacorp_commercial/mega_corp_commercial_2.mp4'
 ];
-commercialVideo.src = commercialVideoFiles[
-    Math.floor(Math.random() * commercialVideoFiles.length)
-];
-commercialVideo.loop = true;
+let currentCommercialIndex = Math.floor(Math.random() * commercialVideoFiles.length);
+commercialVideo.src = commercialVideoFiles[currentCommercialIndex];
+commercialVideo.loop = false;
 commercialVideo.muted = true;
 commercialVideo.playsInline = true;
 commercialVideo.autoplay = true;
 commercialVideo.crossOrigin = 'anonymous';
+function playNextCommercialVideo(){
+    currentCommercialIndex = (currentCommercialIndex + 1) % commercialVideoFiles.length;
+    commercialVideo.src = commercialVideoFiles[currentCommercialIndex];
+    commercialVideo.load();
+    commercialTexture.needsUpdate = true;
+    commercialVideo.play().catch(err => {
+        console.warn('Commercial video failed to autoplay:', err);
+    });
+}
+commercialVideo.addEventListener('ended', playNextCommercialVideo);
 commercialVideo.load();
 commercialVideo.play().catch(err => {
     console.warn('Commercial video failed to autoplay:', err);
