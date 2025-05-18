@@ -140,7 +140,9 @@ const commercialVideoFiles = [
     './assets/megacorp_commercial/mega_corp_commercial_8.mp4',
     './assets/megacorp_commercial/mega_corp_commercial_9.mp4',
     './assets/megacorp_commercial/mega_corp_commercial_10.mp4',
-    './assets/megacorp_commercial/mega_corp_commercial_11.mp4'
+    './assets/megacorp_commercial/mega_corp_commercial_11.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_12.mp4',
+    './assets/megacorp_commercial/mega_corp_commercial_13.mp4'
 ];
 
 // Static PNG images for billboards
@@ -149,7 +151,9 @@ const commercialImageFiles = [
     './assets/cyberpunk_commercial_pictures/cyberpunk fashion_2.png',
     './assets/cyberpunk_commercial_pictures/cyberpunk fashion_3.png',
     './assets/cyberpunk_commercial_pictures/cyberpunk_fashion_4.png',
-    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_5.png'
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_5.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_6.png',
+    './assets/cyberpunk_commercial_pictures/cyberpunk fashion_7.png'
 ];
 
 const COMMERCIAL_ASPECT_RATIO = 2 / 3;
@@ -737,34 +741,63 @@ function createCommercialBillboard(type = 'video'){
     const targetWidth = (face === 0 || face === 1) ? dims.w : dims.d;
     const height = targetWidth / COMMERCIAL_ASPECT_RATIO;
 
+    function createCurvedPlane(width, height, depth){
+        const segs = 20;
+        const geo = new THREE.PlaneGeometry(width, height, segs, 1);
+        const pos = geo.attributes.position;
+        for(let i=0;i<pos.count;i++){
+            const x = pos.getX(i);
+            const curve = Math.sin((x/width)*Math.PI) * depth;
+            pos.setZ(i, curve);
+        }
+        pos.needsUpdate = true;
+        geo.computeVertexNormals();
+        return geo;
+    }
+
     function createMediaMesh() {
+        const variation = Math.random();
+        let geometry;
+        if(variation < 0.33){
+            geometry = new THREE.PlaneGeometry(targetWidth, height);
+        } else if(variation < 0.66){
+            geometry = createCurvedPlane(targetWidth, height, targetWidth * 0.05);
+        } else {
+            geometry = new THREE.PlaneGeometry(targetWidth, height);
+        }
+
+        let material;
         if (type === 'image') {
             const loader = new THREE.TextureLoader();
             const tex = loader.load(commercialImageFiles[Math.floor(Math.random() * commercialImageFiles.length)]);
-            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-            return new THREE.Mesh(new THREE.PlaneGeometry(targetWidth, height), mat);
+            material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        } else {
+            const video = document.createElement('video');
+            video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.autoplay = true;
+            video.crossOrigin = 'anonymous';
+            video.play().catch(err => {
+                console.warn('Commercial video failed to autoplay:', err);
+            });
+
+            const texture = new THREE.VideoTexture(video);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
+
+            material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         }
 
-        const video = document.createElement('video');
-        video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.autoplay = true;
-        video.crossOrigin = 'anonymous';
-        video.play().catch(err => {
-            console.warn('Commercial video failed to autoplay:', err);
-        });
-
-        const texture = new THREE.VideoTexture(video);
-        texture.wrapS = THREE.ClampToEdgeWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.generateMipmaps = false;
-
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        return new THREE.Mesh(new THREE.PlaneGeometry(targetWidth, height), material);
+        const mesh = new THREE.Mesh(geometry, material);
+        if(variation >= 0.66){
+            mesh.rotation.y += (Math.random()-0.5) * Math.PI/6;
+        }
+        return mesh;
     }
 
     const group = new THREE.Group();
