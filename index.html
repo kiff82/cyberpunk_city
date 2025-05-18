@@ -107,7 +107,8 @@ const CONFIG={
         SPAWN_PADDING:300,
         NEON_COLORS:[
             0xff4400,0x00aaff,0xffdd33,0xff2222,0xcc00ff,0x00dd88,0xeeeeff,
-        ]
+        ],
+        ENABLE_FLICKER:true
     }
 };
 
@@ -359,7 +360,7 @@ function addNeons(parent,w,d,h_geom){
         });
         const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
         sign.position.y=(Math.random()-0.5)*(h_geom*0.85);
-        const off=0.11;
+        const off=0.01;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
     }
@@ -813,18 +814,20 @@ function animate(){
 
 
     // Neon flickering
-    [...buildings,...billboards].forEach(obj=>{
-        if (obj.userData && obj.userData.baseSegment) {
-             obj.userData.baseSegment.children?.forEach(n=>{
-                if(n.material && n.material.opacity !== undefined){
-                    if (Math.random() < 0.008) n.material.opacity = Math.random() * 0.3 + 0.1;
-                    else if (Math.random() < 0.012) n.material.opacity = Math.random() * 0.5 + 0.5;
-                }
-            });
-        } else if (obj.material && obj.material.opacity !== undefined && obj.isMesh) {
-            if(Math.random()<0.01) obj.material.opacity = 0.15 + Math.random()*0.3;
-        }
-    });
+    if(CONFIG.misc.ENABLE_FLICKER){
+        [...buildings,...billboards].forEach(obj=>{
+            if (obj.userData && obj.userData.baseSegment) {
+                 obj.userData.baseSegment.children?.forEach(n=>{
+                    if(n.material && n.material.opacity !== undefined){
+                        if (Math.random() < 0.008) n.material.opacity = Math.random() * 0.3 + 0.1;
+                        else if (Math.random() < 0.012) n.material.opacity = Math.random() * 0.5 + 0.5;
+                    }
+                });
+            } else if (obj.material && obj.material.opacity !== undefined && obj.isMesh) {
+                if(Math.random()<0.01) obj.material.opacity = 0.15 + Math.random()*0.3;
+            }
+        });
+    }
 
     // Rain animation
     if(rain && CONFIG.effects.RAIN_FADE_PERIOD > 0){
