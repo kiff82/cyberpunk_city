@@ -156,7 +156,6 @@ function init(){
     createInitialZVehicles(); // Renamed
     createInitialXVehicles(); // Added
     createBillboards();
-    createLargeEmissiveScreen();
     createRain();
 
     const extraBuilding = createSimpleBuilding({
@@ -621,7 +620,25 @@ function createInitialXVehicles(){
 
 
 /* ---------- BILLBOARDS, LARGE SCREEN & RAIN (No changes from original) ---------- */
-function createBillboard(zPos=null){
+function pickRandomBuilding(){
+    return buildings[Math.floor(Math.random()*buildings.length)];
+}
+function placeBillboardOnBuilding(bb, building){
+    building.add(bb);
+    bb.position.set(0,0,0);
+    bb.rotation.set(0,0,0);
+    const dims = building.userData.base;
+    const face = Math.floor(Math.random()*4);
+    const off = 0.01;
+    bb.position.y = Math.random()*dims.h*0.8 + dims.h*0.1;
+    switch(face){
+        case 0: bb.position.z = dims.d/2 + off; break;
+        case 1: bb.position.z = -dims.d/2 - off; bb.rotation.y = Math.PI; break;
+        case 2: bb.position.x = dims.w/2 + off; bb.rotation.y = Math.PI/2; break;
+        case 3: bb.position.x = -dims.w/2 - off; bb.rotation.y = -Math.PI/2; break;
+    }
+}
+function createBillboard(){
     const w=Math.random()*18+12, h=Math.random()*10+6;
     const billboardMaterial = new THREE.MeshBasicMaterial({
         color:CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)],
@@ -631,13 +648,10 @@ function createBillboard(zPos=null){
         side:THREE.DoubleSide
     });
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
-    const side=Math.random()<0.5?-1:1, minX=CONFIG.city.CORRIDOR_WIDTH/2+w/2+10;
-    const billboardY = CONFIG.camera.BASE_HEIGHT + (Math.random() - 0.5) * 250;
-    plane.position.set(side*(minX+Math.random()*80), billboardY, zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH));
-    plane.rotation.y=side>0?Math.PI/2:-Math.PI/2;
+    placeBillboardOnBuilding(plane, pickRandomBuilding());
     return plane;
 }
-function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();scene.add(bb);billboards.push(bb);}}
+function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();billboards.push(bb);}}
 function createLargeEmissiveScreen() {
     const screenWidth = 200 + Math.random() * 100;
     const screenHeight = 300 + Math.random() * 150;
@@ -748,23 +762,8 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
         }
     });
 
-    billboards.forEach(bb => {
-        const dz = bb.position.z - camZ;
-        const farFrontThreshold = CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING;
-        const farBackThreshold = CONFIG.misc.SPAWN_PADDING;
-
-        if (dz < -farFrontThreshold || dz > farBackThreshold) {
-            bb.position.z = camZ - (CONFIG.misc.VISIBLE_DEPTH + Math.random() * CONFIG.misc.SPAWN_PADDING);
-            const w = bb.geometry.parameters.width;
-            const side = Math.random() < 0.5 ? -1 : 1;
-            const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + w / 2 + 10;
-            bb.position.x = side * (minX + Math.random() * 80);
-            bb.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
-            bb.material.color.setHex(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-            bb.material.opacity = 0.15 + Math.random()*0.3;
-            bb.position.y = CONFIG.camera.BASE_HEIGHT + (Math.random() - 0.5) * 250;
-        }
-    });
+    // Billboards are attached to buildings and move with them, so individual
+    // billboard recycling is no longer required.
     // carsX are not recycled in the same way; they wrap around their X path and Z is tied to camera.
 }
 
