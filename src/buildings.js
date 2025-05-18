@@ -1,5 +1,16 @@
 import * as THREE from 'three';
 
+// Reuse the same geometry and materials for all window instances
+export const WINDOW_GEO = new THREE.PlaneGeometry(2, 1.5);
+export const LIT_MAT = new THREE.MeshBasicMaterial({
+    color: 0xffeeaa,
+    toneMapped: false
+});
+export const DARK_MAT = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    toneMapped: false
+});
+
 const CYBERPUNK_BUILDING_MATERIALS = [
     { color: 0x202025, roughness: 0.95, metalness: 0.15 }, // Dark concrete
     { color: 0x25282a, roughness: 0.7,  metalness: 0.8  }, // Grimy metal
@@ -35,15 +46,10 @@ export function createSimpleBuilding(options = {}) {
 }
 
 export function addOfficeWindows(target, width, height, depth) {
-    const litMat = new THREE.MeshBasicMaterial({
-        color: 0xffeeaa,
-        toneMapped: false
-    });
-    const darkMat = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        toneMapped: false
-    });
-    const windowGeo = new THREE.PlaneGeometry(2, 1.5);
+    // Use shared geometry and materials instead of allocating new ones each time
+    const litMat = LIT_MAT;
+    const darkMat = DARK_MAT;
+    const windowGeo = WINDOW_GEO;
     const spacingX = 5;
     const spacingY = 4;
     const margin = 5;

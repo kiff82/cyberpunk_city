@@ -43,3 +43,12 @@ https://kiff82.github.io/cyberpunk_city/
 
 `index.html` and the `src/` folder will load from that path. An internet connection is still required for the Three.js modules pulled from the CDN.
 
+## Resolving Merge Conflicts
+
+If a pull request shows "This branch has conflicts that must be resolved", you'll need to edit the files locally.
+
+1. Run `git status` to see which files contain conflict markers like `<<<<<<<` and `>>>>>>>`.
+2. Open those files and decide which changes to keep. Remove the conflict markers once the content looks correct.
+3. After editing, run `git add <file>` for each resolved file and commit with `git commit`.
+4. Push the updated branch and the pull request will update automatically.
+
