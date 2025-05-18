@@ -119,11 +119,13 @@ const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ,
 let rain, rainPositions;
 let currentTrackedCarX = 0;
 const commercialVideo = document.createElement('video');
-commercialVideo.src = './assets/megacorp_comercial/mega_corp_commercial_1.mp4';
+commercialVideo.src = './assets/megacorp_commercial/mega_corp_commercial_1.mp4';
 commercialVideo.loop = true;
 commercialVideo.muted = true;
 commercialVideo.playsInline = true;
-commercialVideo.play();
+commercialVideo.play().catch(err => {
+    console.warn('Commercial video failed to autoplay:', err);
+});
 const commercialTexture = new THREE.VideoTexture(commercialVideo);
 commercialTexture.wrapS = THREE.ClampToEdgeWrapping;
 commercialTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -688,28 +690,6 @@ function createCommercialBillboard(){
     return plane;
 }
 function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();billboards.push(bb);}}
-function createLargeEmissiveScreen() {
-    const screenWidth = 200 + Math.random() * 100;
-    const screenHeight = 300 + Math.random() * 150;
-    const screenColor = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.4, 0.6);
-    const screenMaterial = new THREE.MeshBasicMaterial({
-        color: screenColor,
-        transparent: true,
-        opacity: 0.15 + Math.random() * 0.15,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        fog: false
-    });
-    const largeScreen = new THREE.Mesh(new THREE.PlaneGeometry(screenWidth, screenHeight), screenMaterial);
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const screenXPos = side * (CONFIG.city.CORRIDOR_WIDTH / 1.2 + screenWidth / 2 + Math.random() * 100);
-    const screenYPos = CONFIG.camera.BASE_HEIGHT + Math.random() * 100 - 50;
-    const screenZPos = camera.position.z - (CONFIG.misc.VISIBLE_DEPTH * (0.6 + Math.random() * 0.3));
-    largeScreen.position.set(screenXPos, screenYPos, screenZPos);
-    if (side > 0) { largeScreen.rotation.y = -Math.PI / 2 * (0.8 + Math.random()*0.4); }
-    else { largeScreen.rotation.y = Math.PI / 2 * (0.8 + Math.random()*0.4); }
-    scene.add(largeScreen);
-}
 function createRain(){
     rainPositions=new Float32Array(CONFIG.effects.RAIN_COUNT*3);
     for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){
