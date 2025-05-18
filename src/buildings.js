@@ -85,7 +85,8 @@ export function addOfficeWindows(target, width, height, depth) {
                         break;
                 }
                 obj.updateMatrix();
-                if (Math.random() < 0.6) {
+                // Reduce the percentage of lit windows so buildings appear darker
+                if (Math.random() < 0.3) {
                     litMatrices.push(obj.matrix.clone());
                 } else {
                     darkMatrices.push(obj.matrix.clone());

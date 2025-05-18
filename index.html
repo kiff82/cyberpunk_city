@@ -206,6 +206,19 @@ function addGreebles(mesh, segmentWidth, segmentDepth, segmentHeight) {
         mesh.add(greeble);
     }
 }
+
+// Utility to obtain accurate width/height/depth for any mesh
+function getMeshDimensions(mesh) {
+    if (!mesh.geometry.boundingBox) {
+        mesh.geometry.computeBoundingBox();
+    }
+    const bb = mesh.geometry.boundingBox;
+    return {
+        w: bb.max.x - bb.min.x,
+        h: bb.max.y - bb.min.y,
+        d: bb.max.z - bb.min.z
+    };
+}
 function createBuilding(zPos=null){
     const g = new THREE.Group();
     const buildingZ = zPos??(camera.position.z-Math.random()*CONFIG.misc.VISIBLE_DEPTH);
@@ -228,8 +241,8 @@ function createBuilding(zPos=null){
         let segmentMesh;
         let segmentParams = { w: currW, h: h, d: currD };
         const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
-        // Force building segments to a neutral grey rather than district tinted colours
-        const baseColor = new THREE.Color(0x666666);
+        // Use darker versions of the presets and avoid any brown tint
+        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.5 + Math.random() * 0.3);
         const buildingMaterial = new THREE.MeshStandardMaterial({
             color: baseColor,
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
@@ -252,11 +265,15 @@ function createBuilding(zPos=null){
                 segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
             }
         }
-        segmentMesh.position.y = yCursor + h/2;
+        const dims = getMeshDimensions(segmentMesh);
+        segmentParams.w = dims.w;
+        segmentParams.h = dims.h;
+        segmentParams.d = dims.d;
+        segmentMesh.position.y = yCursor + dims.h/2;
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(!useCylinder){
-            addOfficeWindows(segmentMesh, segmentParams.w, h, segmentParams.d);
+            addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d);
         }
         if(s===0) baseSegment = segmentMesh;
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
@@ -293,7 +310,8 @@ function createBuilding(zPos=null){
         g.add(antenna);
     }
     if (baseSegment) {
-        addNeons(baseSegment, baseSegment.geometry.parameters.width, baseSegment.geometry.parameters.depth, baseSegment.geometry.parameters.height);
+        const baseDims = getMeshDimensions(baseSegment);
+        addNeons(baseSegment, baseDims.w, baseDims.d, baseDims.h);
     }
     // Extend the building downward so the ground is never visible
     const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
@@ -684,16 +702,14 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             b.userData.districtIndex = districtIndex;
 
             if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
-                addNeons(b.userData.baseSegment,
-                         b.userData.baseSegment.geometry.parameters.width,
-                         b.userData.baseSegment.geometry.parameters.depth,
-                         b.userData.baseSegment.geometry.parameters.height);
+                const dims = getMeshDimensions(b.userData.baseSegment);
+                addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h);
                 // Restore office windows that were removed when adding new neons
                 addOfficeWindows(
                     b.userData.baseSegment,
-                    b.userData.baseSegment.geometry.parameters.width,
-                    b.userData.baseSegment.geometry.parameters.height,
-                    b.userData.baseSegment.geometry.parameters.depth
+                    dims.w,
+                    dims.h,
+                    dims.d
                 );
             }
         }
