@@ -651,12 +651,12 @@ function createInitialXVehicles(){
 function pickRandomBuilding(){
     return buildings[Math.floor(Math.random()*buildings.length)];
 }
-function placeBillboardOnBuilding(bb, building){
+function placeBillboardOnBuilding(bb, building, face = null){
     building.add(bb);
     bb.position.set(0,0,0);
     bb.rotation.set(0,0,0);
     const dims = building.userData.base;
-    const face = Math.floor(Math.random()*4);
+    if (face === null) face = Math.floor(Math.random()*4);
     // Offset billboard slightly to avoid far distance z-fighting
     const off = 0.05;
     bb.position.y = Math.random()*dims.h*0.8 + dims.h*0.1;
@@ -684,6 +684,7 @@ function placeBillboardOnBuilding(bb, building){
             child.instanceMatrix.needsUpdate = true;
         }
     });
+    return face;
 }
 function createBillboard(){
     const w=Math.random()*18+12, h=Math.random()*10+6;
@@ -699,36 +700,50 @@ function createBillboard(){
     return plane;
 }
 function createCommercialBillboard(){
-    const height = 36;
-    const width = height * COMMERCIAL_ASPECT_RATIO;
+    const building = pickRandomBuilding();
+    const face = Math.floor(Math.random() * 4);
+    const dims = building.userData.base;
+    const targetWidth = (face === 0 || face === 1) ? dims.w : dims.d;
+    const height = targetWidth / COMMERCIAL_ASPECT_RATIO;
 
-    const video = document.createElement('video');
-    video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.autoplay = true;
-    video.crossOrigin = 'anonymous';
-    video.play().catch(err => {
-        console.warn('Commercial video failed to autoplay:', err);
-    });
+    function createVideoMesh() {
+        const video = document.createElement('video');
+        video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.crossOrigin = 'anonymous';
+        video.play().catch(err => {
+            console.warn('Commercial video failed to autoplay:', err);
+        });
 
-    const texture = new THREE.VideoTexture(video);
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
+        const texture = new THREE.VideoTexture(video);
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
 
-    const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide
-    });
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-    placeBillboardOnBuilding(plane, pickRandomBuilding());
-    return plane;
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            side: THREE.DoubleSide
+        });
+        return new THREE.Mesh(new THREE.PlaneGeometry(targetWidth, height), material);
+    }
+
+    const group = new THREE.Group();
+    const plane1 = createVideoMesh();
+    group.add(plane1);
+
+    if (Math.random() < 0.5) {
+        const plane2 = createVideoMesh();
+        plane2.position.y = -height;
+        group.add(plane2);
+    }
+
+    placeBillboardOnBuilding(group, building, face);
+    return group;
 }
 function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();billboards.push(bb);}}
 function createRain(){
