@@ -33,6 +33,16 @@ The first time you run this command, install dependencies with `npm install`.
 
 All code is contained in `index.html` and the `src/` directory. No build step is required.
 
+## Configuration
+
+The `CONFIG` object in `index.html` exposes various options. To disable the neon flickering effect, set:
+
+```javascript
+CONFIG.misc.ENABLE_FLICKER = false;
+```
+
+Reload the page after editing the file to see the change.
+
 ## Running on GitHub Pages
 
 The project works when hosted from any subdirectory, so you can serve it via GitHub Pages. Publish the repository (or a `gh-pages` branch) using GitHub Pages and visit:
