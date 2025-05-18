@@ -50,32 +50,52 @@ export function addOfficeWindows(target, width, height, depth) {
     const cols = Math.floor((width - margin * 2) / spacingX);
     const rows = Math.floor((height - margin * 2) / spacingY);
 
+    const litMatrices = [];
+    const darkMatrices = [];
+    const obj = new THREE.Object3D();
+
     for (let side = 0; side < 4; side++) {
         for (let i = 0; i < cols; i++) {
             for (let j = 0; j < rows; j++) {
-                const mat = Math.random() < 0.6 ? litMat : darkMat;
-                const win = new THREE.Mesh(windowGeo, mat);
                 const x = -width/2 + margin + i * spacingX;
                 const y = -height/2 + margin + j * spacingY;
+                obj.position.set(0,0,0);
+                obj.rotation.set(0,0,0);
                 switch (side) {
                     case 0: // front
-                        win.position.set(x, y, depth/2 + 0.01);
+                        obj.position.set(x, y, depth/2 + 0.01);
                         break;
                     case 1: // back
-                        win.position.set(x, y, -depth/2 - 0.01);
-                        win.rotation.y = Math.PI;
+                        obj.position.set(x, y, -depth/2 - 0.01);
+                        obj.rotation.y = Math.PI;
                         break;
                     case 2: // left
-                        win.position.set(-width/2 - 0.01, y, x);
-                        win.rotation.y = -Math.PI/2;
+                        obj.position.set(-width/2 - 0.01, y, x);
+                        obj.rotation.y = -Math.PI/2;
                         break;
                     case 3: // right
-                        win.position.set(width/2 + 0.01, y, x);
-                        win.rotation.y = Math.PI/2;
+                        obj.position.set(width/2 + 0.01, y, x);
+                        obj.rotation.y = Math.PI/2;
                         break;
                 }
-                target.add(win);
+                obj.updateMatrix();
+                if (Math.random() < 0.6) {
+                    litMatrices.push(obj.matrix.clone());
+                } else {
+                    darkMatrices.push(obj.matrix.clone());
+                }
             }
         }
+    }
+
+    if (litMatrices.length > 0) {
+        const inst = new THREE.InstancedMesh(windowGeo, litMat, litMatrices.length);
+        litMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
+        target.add(inst);
+    }
+    if (darkMatrices.length > 0) {
+        const inst = new THREE.InstancedMesh(windowGeo, darkMat, darkMatrices.length);
+        darkMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
+        target.add(inst);
     }
 }
