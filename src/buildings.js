@@ -2,10 +2,24 @@ import * as THREE from 'three';
 
 // Reuse the same geometry and materials for all window instances
 export const WINDOW_GEO = new THREE.PlaneGeometry(2, 1.5);
-export const LIT_MAT = new THREE.MeshBasicMaterial({
-    color: 0xffeeaa,
-    toneMapped: false
-});
+export const LIT_MATS = [
+    new THREE.MeshBasicMaterial({
+        color: 0x99ccff, // soft blue
+        toneMapped: false
+    }),
+    new THREE.MeshBasicMaterial({
+        color: 0xff9933, // orange
+        toneMapped: false
+    }),
+    new THREE.MeshBasicMaterial({
+        color: 0xff99cc, // pink
+        toneMapped: false
+    }),
+    new THREE.MeshBasicMaterial({
+        color: 0xffeeaa, // warm yellow (original)
+        toneMapped: false
+    })
+];
 export const DARK_MAT = new THREE.MeshBasicMaterial({
     color: 0x000000,
     toneMapped: false
@@ -45,7 +59,8 @@ export function createSimpleBuilding(options = {}) {
     const windowProb = options.windowSegmentProbability ?? 1;
     if (options.officeLights && Math.random() < windowProb) {
         addOfficeWindows(group, 40, 150, 40, {
-            litProbability: options.litProbability
+            litProbability: options.litProbability,
+            litMat: options.litMat
         });
     }
 
@@ -54,7 +69,8 @@ export function createSimpleBuilding(options = {}) {
 
 export function addOfficeWindows(target, width, height, depth, options = {}) {
     // Use shared geometry and materials instead of allocating new ones each time
-    const litMat = LIT_MAT;
+    const litMat = options.litMat ??
+        LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)];
     const darkMat = DARK_MAT;
     const windowGeo = WINDOW_GEO;
     const spacingX = 5;

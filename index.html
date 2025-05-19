@@ -32,7 +32,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO } from "./src/buildings.js";
+import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO, LIT_MATS } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
@@ -216,7 +216,8 @@ function init(){
         metalness: 0.6,
         officeLights: true,
         litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY,
-        windowSegmentProbability: CONFIG.city.WINDOW_SEGMENT_PROBABILITY
+        windowSegmentProbability: CONFIG.city.WINDOW_SEGMENT_PROBABILITY,
+        litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
     });
     extraBuilding.userData.base = { w: 40, d: 40, h: 150 };
     extraBuilding.position.set(0, CONFIG.camera.BASE_HEIGHT / 2, -400);
@@ -344,7 +345,16 @@ function createBuilding(zPos=null){
         g.add(segmentMesh);
         if(!useCylinder && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
             const litProbability = darkSegments.has(s) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
-            addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d, {litProbability});
+            addOfficeWindows(
+                segmentMesh,
+                segmentParams.w,
+                segmentParams.h,
+                segmentParams.d,
+                {
+                    litProbability,
+                    litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
+                }
+            );
         }
         if(s===0){
             baseSegment = segmentMesh;
@@ -399,7 +409,16 @@ function createBuilding(zPos=null){
     foundation.position.y = -foundationHeight / 2;
     g.add(foundation);
     if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
-        addOfficeWindows(foundation, maxW * 0.9, foundationHeight, maxD * 0.9, {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY});
+        addOfficeWindows(
+            foundation,
+            maxW * 0.9,
+            foundationHeight,
+            maxD * 0.9,
+            {
+                litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY,
+                litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
+            }
+        );
     }
     const side=Math.random()<0.5?-1:1;
     const minX=CONFIG.city.CORRIDOR_WIDTH/2+maxW/2+6;
@@ -917,7 +936,7 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                 b.userData.baseSegment.traverse(child => {
                     if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
                         // Remove window meshes without disposing the shared
-                        // geometry (WINDOW_GEO) or materials (LIT_MAT/DARK_MAT)
+                        // geometry (WINDOW_GEO) or materials (LIT_MATS/DARK_MAT)
                         b.userData.baseSegment.remove(child);
                     }
                 });
@@ -928,7 +947,10 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                         dims.w,
                         dims.h,
                         dims.d,
-                        {litProbability: b.userData.baseSegmentDark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY}
+                        {
+                            litProbability: b.userData.baseSegmentDark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY,
+                            litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
+                        }
                     );
                 }
             }
