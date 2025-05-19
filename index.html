@@ -921,8 +921,14 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             const districtIndex = Math.floor(Math.abs(b.position.z)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
             // Buildings remain grey when recycled; no district tint applied
             b.traverse(child => {
-                if(child.material && child.material.color && child.userData && child.userData.baseColor){
-                    child.material.color.copy(child.userData.baseColor);
+                if(child.material){
+                    if(child.material.color && child.userData && child.userData.baseColor){
+                        child.material.color.copy(child.userData.baseColor);
+                    }
+                    if(child.material.userData && child.material.userData.originalOpacity !== undefined){
+                        child.material.transparent = false;
+                        child.material.opacity = child.material.userData.originalOpacity;
+                    }
                 }
             });
             b.userData.districtIndex = districtIndex;
