@@ -101,7 +101,7 @@ const CONFIG={
     },
     effects:{
         BLOOM_STRENGTH: 2.0,
-        ENABLE_RAIN: true,
+        ENABLE_RAIN: false,
         RAIN_COUNT: 400,
         RAIN_SPEED:330,
         RAIN_PARTICLE_SIZE: 0.08,
@@ -544,7 +544,7 @@ function _createCarVisuals(type = 'normal') {
 
             const thrusterBaseColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
             thrusterBaseColor.multiplyScalar(0.8 + Math.random() * 0.5);
-            const thrusterMat = new THREE.MeshBasicMaterial({ color: thrusterBaseColor, fog: false });
+            const thrusterMat = new THREE.MeshBasicMaterial({ color: thrusterBaseColor, fog: true });
             const thrusterGeo = new THREE.BoxGeometry(bw*0.15, bh*0.4, bl*0.1);
             [-1,1].forEach(s => {
                 const thrusterL = new THREE.Mesh(thrusterGeo, thrusterMat);
@@ -553,7 +553,7 @@ function _createCarVisuals(type = 'normal') {
                 thrusterR.position.set((bw/3)*s, -bh*0.1, -bl/2 * 0.8); g.add(thrusterR);
             });
             const beaconGeo = new THREE.SphereGeometry(0.15, 8, 8);
-            const beaconMat = new THREE.MeshBasicMaterial({color: new THREE.Color(0xffaa00).multiplyScalar(0.7 + Math.random()*0.6), fog:false});
+            const beaconMat = new THREE.MeshBasicMaterial({color: new THREE.Color(0xffaa00).multiplyScalar(0.7 + Math.random()*0.6), fog:true});
             const topBeacon = new THREE.Mesh(beaconGeo, beaconMat);
             topBeacon.position.y = bh/2 + 0.1; g.add(topBeacon);
             break;
@@ -584,8 +584,8 @@ function _createCarVisuals(type = 'normal') {
 
     if(type === 'police') {
         const sirenGeo = new THREE.BoxGeometry(bw*0.4, bh*0.15, 0.6);
-        const sirenRed = new THREE.MeshBasicMaterial({color:0xff0000, fog:false});
-        const sirenBlue = new THREE.MeshBasicMaterial({color:0x0000ff, fog:false});
+        const sirenRed = new THREE.MeshBasicMaterial({color:0xff0000, fog:true});
+        const sirenBlue = new THREE.MeshBasicMaterial({color:0x0000ff, fog:true});
         const left = new THREE.Mesh(sirenGeo, sirenRed);
         const right = new THREE.Mesh(sirenGeo, sirenBlue);
         left.position.set(-bw*0.25, bh/2 + 0.1, 0);
@@ -602,11 +602,11 @@ function _createCarVisuals(type = 'normal') {
     else if (rH < 0.85) headlightColor.setHSL(0.0, 0.0, 0.9);
     else headlightColor.setHSL(0.6, 0.8, 0.9);
     headlightColor.multiplyScalar(0.9 + Math.random() * 0.3);
-    const hMat = new THREE.MeshBasicMaterial({ color: headlightColor, fog: false });
+    const hMat = new THREE.MeshBasicMaterial({ color: headlightColor, fog: true });
     const taillightColor = new THREE.Color(0xff0000);
     taillightColor.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
     taillightColor.multiplyScalar(0.8 + Math.random() * 0.4);
-    const tMat = new THREE.MeshBasicMaterial({ color: taillightColor, fog: false });
+    const tMat = new THREE.MeshBasicMaterial({ color: taillightColor, fog: true });
     [-1, 1].forEach(s => {
         const hl = new THREE.Mesh(hGeo, hMat); hl.position.set((bw*(type === 'hover_low' ? 0.35 : 0.3))*s, bh*0.1, -bl/2-0.08); g.add(hl);
         const tailYPos = (type === 'bus') ? bh*0.25 : bh*0.1;
@@ -642,13 +642,13 @@ function _createTruckVisuals() {
     else if (rHT < 0.85) headlightColorTruck.setHSL(0.0, 0.0, 0.9);
     else headlightColorTruck.setHSL(0.6, 0.8, 0.9);
     headlightColorTruck.multiplyScalar(0.9 + Math.random() * 0.3);
-    const hMatTruck = new THREE.MeshBasicMaterial({ color: headlightColorTruck, fog:false });
+    const hMatTruck = new THREE.MeshBasicMaterial({ color: headlightColorTruck, fog:true });
     const taillightColorTruck = new THREE.Color(0xff0000);
     taillightColorTruck.offsetHSL( (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.2);
     taillightColorTruck.multiplyScalar(0.8 + Math.random() * 0.4);
-    const tMatTruck = new THREE.MeshBasicMaterial({ color: taillightColorTruck, fog:false });
-    const markerMatOrange = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa500).multiplyScalar(0.7 + Math.random()*0.5), fog:false });
-    const markerMatRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff0000).multiplyScalar(0.6 + Math.random()*0.4), fog:false });
+    const tMatTruck = new THREE.MeshBasicMaterial({ color: taillightColorTruck, fog:true });
+    const markerMatOrange = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa500).multiplyScalar(0.7 + Math.random()*0.5), fog:true });
+    const markerMatRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff0000).multiplyScalar(0.6 + Math.random()*0.4), fog:true });
     [-1,1].forEach(s=>{ const hl=new THREE.Mesh(hGeo,hMatTruck); hl.position.set((cabW/2.8)*s, -cabH*0.25, cab.position.z-cabL/2-0.1); g.add(hl); });
     [-1,1].forEach(s=>{ const tl=new THREE.Mesh(tGeo,tMatTruck); tl.position.set((trailerW/2.8)*s, -trailerH*0.3, trailer.position.z+trailerL/2+0.1); g.add(tl); });
     for(let i=0; i<3; i++){ const m = new THREE.Mesh(markerGeo, markerMatOrange); m.position.set((i-1)*cabW*0.3, cabH/2 + 0.1, cab.position.z - cabL/2 + 0.1); g.add(m); }
