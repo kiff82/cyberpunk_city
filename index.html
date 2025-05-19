@@ -916,15 +916,9 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                 // Remove previously added window meshes before adding new ones
                 b.userData.baseSegment.traverse(child => {
                     if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
+                        // Remove window meshes without disposing the shared
+                        // geometry (WINDOW_GEO) or materials (LIT_MAT/DARK_MAT)
                         b.userData.baseSegment.remove(child);
-                        if (child.geometry) child.geometry.dispose();
-                        if (child.material) {
-                            if (Array.isArray(child.material)) {
-                                child.material.forEach(mat => mat.dispose());
-                            } else {
-                                child.material.dispose();
-                            }
-                        }
                     }
                 });
 
