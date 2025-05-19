@@ -1042,7 +1042,9 @@ function animate(){
     if(CONFIG.misc.ENABLE_FLICKER){
         [...buildings,...billboards].forEach(obj=>{
             if (obj.userData && obj.userData.baseSegment) {
-                 obj.userData.baseSegment.children?.forEach(n=>{
+                obj.userData.baseSegment.children?.forEach(n=>{
+                    // Skip window meshes so they remain steady
+                    if(n.isInstancedMesh && n.geometry === WINDOW_GEO) return;
                     if(n.material && n.material.opacity !== undefined){
                         if (Math.random() < 0.008) n.material.opacity = Math.random() * 0.3 + 0.1;
                         else if (Math.random() < 0.012) n.material.opacity = Math.random() * 0.5 + 0.5;
