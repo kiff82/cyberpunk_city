@@ -476,8 +476,8 @@ function addNeons(parent,w,d,h_geom, enabled=true){
         sign.userData.isNeonSign=true;
         parent.userData.neonSigns.push(sign);
         neonSigns.push(sign);
-        // Slight offset to prevent z-fighting when viewed from afar
-        const off=0.05;
+        // Slight offset to prevent z-fighting and ensure sign renders over windows
+        const off=0.12;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
 
