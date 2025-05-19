@@ -78,18 +78,18 @@ export function addOfficeWindows(target, width, height, depth, options = {}) {
                 obj.rotation.set(0,0,0);
                 switch (side) {
                     case 0: // front
-                        obj.position.set(x, y, depth/2 + 0.05);
+                        obj.position.set(x, y, depth/2 + 0.1); // increased offset to avoid z-fighting
                         break;
                     case 1: // back
-                        obj.position.set(x, y, -depth/2 - 0.05);
+                        obj.position.set(x, y, -depth/2 - 0.1);
                         obj.rotation.y = Math.PI;
                         break;
                     case 2: // left
-                        obj.position.set(-width/2 - 0.05, y, x);
+                        obj.position.set(-width/2 - 0.1, y, x);
                         obj.rotation.y = -Math.PI/2;
                         break;
                     case 3: // right
-                        obj.position.set(width/2 + 0.05, y, x);
+                        obj.position.set(width/2 + 0.1, y, x);
                         obj.rotation.y = Math.PI/2;
                         break;
                 }
