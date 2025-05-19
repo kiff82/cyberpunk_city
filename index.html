@@ -101,6 +101,7 @@ const CONFIG={
     },
     effects:{
         BLOOM_STRENGTH: 2.0,
+        ENABLE_RAIN: true,
         RAIN_COUNT: 400,
         RAIN_SPEED:330,
         RAIN_PARTICLE_SIZE: 0.08,
@@ -208,7 +209,7 @@ function init(){
     for(let i=0;i<10;i++){
         billboards.push(createCommercialBillboard('image'));
     }
-    createRain();
+    if(CONFIG.effects.ENABLE_RAIN) createRain();
 
     const extraBuilding = createSimpleBuilding({
         color: 0x222233,
@@ -900,6 +901,7 @@ function createCommercialBillboard(type = 'video'){
 }
 function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();billboards.push(bb);}}
 function createRain(){
+    if(!CONFIG.effects.ENABLE_RAIN || CONFIG.effects.RAIN_COUNT <= 0) return;
     rainPositions=new Float32Array(CONFIG.effects.RAIN_COUNT*3);
     for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){
         rainPositions[i*3]=(Math.random()-0.5)*CONFIG.city.CORRIDOR_WIDTH*1.2;
@@ -932,6 +934,7 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
+            b.updateMatrixWorld(true);
 
             const districtIndex = Math.floor(Math.abs(b.position.z)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
             // Buildings remain grey when recycled; no district tint applied
@@ -1127,25 +1130,27 @@ function animate(){
     }
 
     // Rain animation
-    if(rain && CONFIG.effects.RAIN_FADE_PERIOD > 0){
-        const sineWave = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / CONFIG.effects.RAIN_FADE_PERIOD));
-        const minOpacity = CONFIG.effects.RAIN_MIN_OPACITY_FACTOR * CONFIG.effects.RAIN_MAX_OPACITY;
-        const maxOpacityAboveMin = CONFIG.effects.RAIN_MAX_OPACITY - minOpacity;
-        rain.material.opacity = minOpacity + maxOpacityAboveMin * sineWave;
-    }
-    const currentCamZ = camera.position.z; const rainRecycleYThreshold = -150;
-    for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){
-        const particleZ = rainPositions[i*3+2]; const dzToCamera = particleZ - currentCamZ;
-        if (dzToCamera < 0 && dzToCamera > -CONFIG.effects.RAIN_CULL_DISTANCE_Z) { rainPositions[i*3+1] = rainRecycleYThreshold - 100; }
-        else { rainPositions[i*3+1] -= CONFIG.effects.RAIN_SPEED * delta; }
-        if(rainPositions[i*3+1] < rainRecycleYThreshold){
-            rainPositions[i*3+1] = CONFIG.camera.BASE_HEIGHT + 150 + Math.random()*300;
-            const zOffsetRange = CONFIG.misc.VISIBLE_DEPTH - CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA;
-            const randomZOffset = (zOffsetRange > 0) ? Math.random() * zOffsetRange : 0;
-            rainPositions[i*3+2] = currentCamZ - (CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA + randomZOffset);
+    if(CONFIG.effects.ENABLE_RAIN && rain){
+        if(CONFIG.effects.RAIN_FADE_PERIOD > 0){
+            const sineWave = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / CONFIG.effects.RAIN_FADE_PERIOD));
+            const minOpacity = CONFIG.effects.RAIN_MIN_OPACITY_FACTOR * CONFIG.effects.RAIN_MAX_OPACITY;
+            const maxOpacityAboveMin = CONFIG.effects.RAIN_MAX_OPACITY - minOpacity;
+            rain.material.opacity = minOpacity + maxOpacityAboveMin * sineWave;
         }
+        const currentCamZ = camera.position.z; const rainRecycleYThreshold = -150;
+        for(let i=0;i<CONFIG.effects.RAIN_COUNT;i++){ 
+            const particleZ = rainPositions[i*3+2]; const dzToCamera = particleZ - currentCamZ;
+            if (dzToCamera < 0 && dzToCamera > -CONFIG.effects.RAIN_CULL_DISTANCE_Z) { rainPositions[i*3+1] = rainRecycleYThreshold - 100; }
+            else { rainPositions[i*3+1] -= CONFIG.effects.RAIN_SPEED * delta; }
+            if(rainPositions[i*3+1] < rainRecycleYThreshold){
+                rainPositions[i*3+1] = CONFIG.camera.BASE_HEIGHT + 150 + Math.random()*300;
+                const zOffsetRange = CONFIG.misc.VISIBLE_DEPTH - CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA;
+                const randomZOffset = (zOffsetRange > 0) ? Math.random() * zOffsetRange : 0;
+                rainPositions[i*3+2] = currentCamZ - (CONFIG.effects.RAIN_RECYCLE_MIN_Z_OFFSET_FROM_CAMERA + randomZOffset);
+            }
+        }
+        if(rain) rain.geometry.attributes.position.needsUpdate=true;
     }
-    if(rain) rain.geometry.attributes.position.needsUpdate=true;
 
     recycle();
     composer.render();
