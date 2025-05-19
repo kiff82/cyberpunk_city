@@ -939,13 +939,14 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                 addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h, b.userData.baseSegmentDark);
 
                 // Remove previously added window meshes before adding new ones
+                const toRemove = [];
                 b.userData.baseSegment.traverse(child => {
                     if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
-                        // Remove window meshes without disposing the shared
-                        // geometry (WINDOW_GEO) or materials (LIT_MATS/DARK_MAT)
-                        b.userData.baseSegment.remove(child);
+                        // Collect window meshes for removal after traversal
+                        toRemove.push(child);
                     }
                 });
+                toRemove.forEach(child => b.userData.baseSegment.remove(child));
 
                 if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
                     addOfficeWindows(
