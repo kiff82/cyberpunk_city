@@ -452,6 +452,7 @@ function addNeons(parent,w,d,h_geom, enabled=true){
         parent.add(sign);
 
         const signBox = new THREE.Box3().setFromObject(sign);
+        signBox.expandByScalar(0.5);
         const tmpMatrix = new THREE.Matrix4();
         const tmpPos = new THREE.Vector3();
         parent.traverse(child => {
@@ -754,6 +755,7 @@ function placeBillboardOnBuilding(bb, building, face = null){
     }
     // Remove windows that intersect the billboard so they do not appear behind it
     const bbBox = new THREE.Box3().setFromObject(bb);
+    bbBox.expandByScalar(0.5);
     const tmpMatrix = new THREE.Matrix4();
     const tmpPos = new THREE.Vector3();
     building.traverse(child => {
