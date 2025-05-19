@@ -892,7 +892,7 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
 
         if (dz < -farFrontThreshold || dz > farBackThreshold) {
             const spread = CONFIG.misc.VISIBLE_DEPTH;
-            b.position.z = camZ - spread + Math.random() * spread * 2;
+            b.position.z = camera.position.z - (CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING + Math.random() * CONFIG.misc.SPAWN_PADDING);
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
