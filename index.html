@@ -301,6 +301,7 @@ function createBuilding(zPos=null){
     let maxW = 0, maxD = 0;
     let baseSegment = null;
     let baseSegmentDark = false;
+    const segmentsInfo = [];
     const rStyle = Math.random();
     let buildingStyle;
     if(rStyle < 0.25) buildingStyle='tapered_cylinder';
@@ -343,6 +344,15 @@ function createBuilding(zPos=null){
         segmentMesh.position.y = yCursor + dims.h/2;
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
+        segmentsInfo.push({
+            mesh: segmentMesh,
+            w: dims.w,
+            d: dims.d,
+            h: dims.h,
+            y0: yCursor,
+            y1: yCursor + dims.h,
+            dark: darkSegments.has(s)
+        });
         if(!useCylinder && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
             const litProbability = darkSegments.has(s) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
             addOfficeWindows(
@@ -393,10 +403,9 @@ function createBuilding(zPos=null){
         antenna.position.y = yCursor + antH/2;
         g.add(antenna);
     }
-    if (baseSegment) {
-        const baseDims = getMeshDimensions(baseSegment);
-        addNeons(baseSegment, baseDims.w, baseDims.d, baseDims.h, baseSegmentDark);
-    }
+    segmentsInfo.forEach(info => {
+        addNeons(info.mesh, info.w, info.d, info.h, info.dark);
+    });
     // Extend the building downward so the ground is never visible
     const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
     const foundationGeo = new THREE.BoxGeometry(maxW * 0.9, foundationHeight, maxD * 0.9);
@@ -431,6 +440,7 @@ function createBuilding(zPos=null){
     g.userData.base={w:maxW,d:maxD,h:yCursor};
     g.userData.baseSegment = baseSegment;
     g.userData.baseSegmentDark = baseSegmentDark;
+    g.userData.segmentsInfo = segmentsInfo;
     g.userData.districtIndex = districtIndex;
     return g;
 }
@@ -757,15 +767,17 @@ function createInitialXVehicles(){
 function pickRandomBuilding(){
     return buildings[Math.floor(Math.random()*buildings.length)];
 }
-function placeBillboardOnBuilding(bb, building, face = null){
+function placeBillboardOnBuilding(bb, building, face = null, segmentInfo = null){
     building.add(bb);
     bb.position.set(0,0,0);
     bb.rotation.set(0,0,0);
-    const dims = building.userData.base;
+    const segs = building.userData.segmentsInfo;
+    const seg = segmentInfo || (Array.isArray(segs) ? segs[Math.floor(Math.random()*segs.length)] : null);
+    const dims = seg ? { w: seg.w, d: seg.d, h: seg.h, y0: seg.y0 } : { ...building.userData.base, y0: 0 };
     if (face === null) face = Math.floor(Math.random()*4);
     // Offset billboard slightly to avoid far distance z-fighting
     const off = 0.05;
-    bb.position.y = Math.random()*dims.h*0.8 + dims.h*0.1;
+    bb.position.y = dims.y0 + Math.random()*dims.h*0.8 + dims.h*0.1;
     switch(face){
         case 0: bb.position.z = dims.d/2 + off; break;
         case 1: bb.position.z = -dims.d/2 - off; bb.rotation.y = Math.PI; break;
@@ -803,13 +815,16 @@ function createBillboard(){
         side:THREE.DoubleSide
     });
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
-    placeBillboardOnBuilding(plane, pickRandomBuilding());
+    const building = pickRandomBuilding();
+    const segInfo = Array.isArray(building.userData.segmentsInfo) ? building.userData.segmentsInfo[Math.floor(Math.random()*building.userData.segmentsInfo.length)] : null;
+    placeBillboardOnBuilding(plane, building, null, segInfo);
     return plane;
 }
 function createCommercialBillboard(type = 'video'){
     const building = pickRandomBuilding();
+    const segInfo = Array.isArray(building.userData.segmentsInfo) ? building.userData.segmentsInfo[Math.floor(Math.random()*building.userData.segmentsInfo.length)] : null;
     const face = Math.floor(Math.random() * 4);
-    const dims = building.userData.base;
+    const dims = segInfo || building.userData.base;
     const targetWidth = (face === 0 || face === 1) ? dims.w : dims.d;
     const height = targetWidth / COMMERCIAL_ASPECT_RATIO;
 
@@ -880,7 +895,7 @@ function createCommercialBillboard(type = 'video'){
     // billboard. Removing this keeps each commercial sign to a single video,
     // preventing stacked billboards and lowering GPU load.
 
-    placeBillboardOnBuilding(group, building, face);
+    placeBillboardOnBuilding(group, building, face, segInfo);
     return group;
 }
 function createBillboards(){for(let i=0;i<40;i++){const bb=createBillboard();billboards.push(bb);}}
@@ -933,33 +948,36 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             });
             b.userData.districtIndex = districtIndex;
 
-            if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
-                const dims = getMeshDimensions(b.userData.baseSegment);
-                b.userData.baseSegmentDark = Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY;
-                addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h, b.userData.baseSegmentDark);
+            if (Array.isArray(b.userData.segmentsInfo)) {
+                b.userData.segmentsInfo.forEach(info => {
+                    if (info.mesh && info.mesh.geometry) {
+                        const dims = getMeshDimensions(info.mesh);
+                        info.w = dims.w; info.h = dims.h; info.d = dims.d;
+                        info.dark = Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY;
+                        addNeons(info.mesh, info.w, info.d, info.h, info.dark);
 
-                // Remove previously added window meshes before adding new ones
-                const toRemove = [];
-                b.userData.baseSegment.traverse(child => {
-                    if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
-                        // Collect window meshes for removal after traversal
-                        toRemove.push(child);
+                        const toRemove = [];
+                        info.mesh.traverse(child => {
+                            if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
+                                toRemove.push(child);
+                            }
+                        });
+                        toRemove.forEach(child => info.mesh.remove(child));
+
+                        if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
+                            addOfficeWindows(
+                                info.mesh,
+                                info.w,
+                                info.h,
+                                info.d,
+                                {
+                                    litProbability: info.dark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY,
+                                    litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
+                                }
+                            );
+                        }
                     }
                 });
-                toRemove.forEach(child => b.userData.baseSegment.remove(child));
-
-                if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
-                    addOfficeWindows(
-                        b.userData.baseSegment,
-                        dims.w,
-                        dims.h,
-                        dims.d,
-                        {
-                            litProbability: b.userData.baseSegmentDark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY,
-                            litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
-                        }
-                    );
-                }
             }
         }
     });
