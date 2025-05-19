@@ -910,6 +910,22 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
                 const dims = getMeshDimensions(b.userData.baseSegment);
                 b.userData.baseSegmentDark = Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY;
                 addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h, b.userData.baseSegmentDark);
+
+                // Remove previously added window meshes before adding new ones
+                b.userData.baseSegment.traverse(child => {
+                    if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
+                        b.userData.baseSegment.remove(child);
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => mat.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                });
+
                 if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
                     addOfficeWindows(
                         b.userData.baseSegment,
