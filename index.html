@@ -32,7 +32,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { setupBasicLights } from "./src/environment.js";
-import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO } from "./src/buildings.js";
+import { createSimpleBuilding, addOfficeWindows, clearOfficeWindows, WINDOW_GEO } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
 
 /* ---------- CONFIG ---------- */
@@ -58,6 +58,7 @@ const CONFIG={
         DISTRICT_LENGTH: 800,
         DARK_MIDDLE_PROBABILITY: 0.4,
         OFFICE_LIGHT_PROBABILITY: 0.05,
+        UNLIT_SEGMENT_PROBABILITY: 0.5,
         WINDOW_SEGMENT_PROBABILITY: 0.7
     },
     trafficZ:{ // Renamed from traffic to trafficZ for clarity
@@ -284,12 +285,21 @@ function createBuilding(zPos=null){
     const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
     const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
     const segments = Math.floor(Math.random()*4)+2;
-    const darkSegmentIndex = Math.random() < CONFIG.city.DARK_MIDDLE_PROBABILITY ? Math.floor(segments/2) : -1;
+    const darkSegments = new Set();
+    if(Math.random() < CONFIG.city.DARK_MIDDLE_PROBABILITY){
+        darkSegments.add(Math.floor(segments/2));
+    }
+    for(let ds=0; ds<segments; ds++){
+        if(Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY){
+            darkSegments.add(ds);
+        }
+    }
     let currW = Math.random()*70+30;
     let currD = Math.random()*70+30;
     let yCursor = 0;
     let maxW = 0, maxD = 0;
     let baseSegment = null;
+    let baseSegmentDark = false;
     const rStyle = Math.random();
     let buildingStyle;
     if(rStyle < 0.25) buildingStyle='tapered_cylinder';
@@ -333,10 +343,13 @@ function createBuilding(zPos=null){
         segmentMesh.userData.baseColor = baseColor.clone();
         g.add(segmentMesh);
         if(!useCylinder && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
-            const litProbability = (s === darkSegmentIndex) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
+            const litProbability = darkSegments.has(s) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
             addOfficeWindows(segmentMesh, segmentParams.w, segmentParams.h, segmentParams.d, {litProbability});
         }
-        if(s===0) baseSegment = segmentMesh;
+        if(s===0){
+            baseSegment = segmentMesh;
+            baseSegmentDark = darkSegments.has(s);
+        }
         if (Math.random() < CONFIG.city.GREEBLE_DENSITY && s > 0) {
              addGreebles(segmentMesh, segmentParams.w, segmentParams.d, h);
         }
@@ -372,7 +385,7 @@ function createBuilding(zPos=null){
     }
     if (baseSegment) {
         const baseDims = getMeshDimensions(baseSegment);
-        addNeons(baseSegment, baseDims.w, baseDims.d, baseDims.h);
+        addNeons(baseSegment, baseDims.w, baseDims.d, baseDims.h, baseSegmentDark);
     }
     // Extend the building downward so the ground is never visible
     const foundationHeight = CONFIG.camera.BASE_HEIGHT + 300;
@@ -398,21 +411,23 @@ function createBuilding(zPos=null){
     );
     g.userData.base={w:maxW,d:maxD,h:yCursor};
     g.userData.baseSegment = baseSegment;
+    g.userData.baseSegmentDark = baseSegmentDark;
     g.userData.districtIndex = districtIndex;
     return g;
 }
-function addNeons(parent,w,d,h_geom){
-    while(parent.children.length > 0){
-        const c=parent.children[0];
-        parent.remove(c);
+function addNeons(parent,w,d,h_geom, enabled=true){
+    for(let i=parent.children.length-1;i>=0;i--){
+        const c=parent.children[i];
         if(c.userData && c.userData.isNeonSign){
+            parent.remove(c);
             const idx=neonSigns.indexOf(c);
             if(idx>-1) neonSigns.splice(idx,1);
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) c.material.dispose();
         }
-        if (c.geometry) c.geometry.dispose();
-        if (c.material) c.material.dispose();
     }
     parent.userData.neonSigns=[];
+    if(!enabled) return;
     const n=Math.floor(Math.random()*5)+3;
     for(let i=0;i<n;i++){
         const face=Math.floor(Math.random()*4), nH_sign=Math.random()*7+2, nW_sign=(face<2?w:d)*(Math.random()*0.6+0.2);
@@ -435,9 +450,35 @@ function addNeons(parent,w,d,h_geom){
         const off=0.05;
         switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
         parent.add(sign);
+
+        const signBox = new THREE.Box3().setFromObject(sign);
+        const tmpMatrix = new THREE.Matrix4();
+        const tmpPos = new THREE.Vector3();
+        parent.traverse(child => {
+            if(child.isInstancedMesh && child.geometry === WINDOW_GEO){
+                for(let idx=0; idx<child.count; idx++){
+                    child.getMatrixAt(idx, tmpMatrix);
+                    tmpPos.setFromMatrixPosition(tmpMatrix);
+                    tmpPos.applyMatrix4(child.matrixWorld);
+                    if(signBox.containsPoint(tmpPos)){
+                        tmpMatrix.setPosition(9999,9999,9999);
+                        child.setMatrixAt(idx, tmpMatrix);
+                    }
+                }
+                child.instanceMatrix.needsUpdate = true;
+            }
+        });
     }
 }
-function createInitialBuildings(){for(let i=0;i<CONFIG.city.NUM_BUILDINGS;i++){const b=createBuilding();scene.add(b);buildings.push(b);}}
+function createInitialBuildings(){
+    for(let i=0;i<CONFIG.city.NUM_BUILDINGS;i++){
+        const spread = CONFIG.misc.VISIBLE_DEPTH;
+        const z = camera.position.z - spread + Math.random() * spread * 2;
+        const b=createBuilding(z);
+        scene.add(b);
+        buildings.push(b);
+    }
+}
 
 /* ---------- VEHICLE CREATION REFACTOR ---------- */
 
@@ -850,10 +891,8 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
         const farBackThreshold = CONFIG.misc.SPAWN_PADDING;
 
         if (dz < -farFrontThreshold || dz > farBackThreshold) {
-            b.position.z = camZ - (
-                CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING +
-                Math.random() * CONFIG.misc.SPAWN_PADDING
-            );
+            const spread = CONFIG.misc.VISIBLE_DEPTH;
+            b.position.z = camZ - spread + Math.random() * spread * 2;
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
@@ -869,15 +908,16 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
 
             if (b.userData.baseSegment && b.userData.baseSegment.geometry) {
                 const dims = getMeshDimensions(b.userData.baseSegment);
-                addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h);
-                // Restore office windows that were removed when adding new neons
+                clearOfficeWindows(b.userData.baseSegment);
+                b.userData.baseSegmentDark = Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY;
+                addNeons(b.userData.baseSegment, dims.w, dims.d, dims.h, b.userData.baseSegmentDark);
                 if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
                     addOfficeWindows(
                         b.userData.baseSegment,
                         dims.w,
                         dims.h,
                         dims.d,
-                        {litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY}
+                        {litProbability: b.userData.baseSegmentDark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY}
                     );
                 }
             }

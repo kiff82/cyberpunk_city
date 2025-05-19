@@ -78,18 +78,18 @@ export function addOfficeWindows(target, width, height, depth, options = {}) {
                 obj.rotation.set(0,0,0);
                 switch (side) {
                     case 0: // front
-                        obj.position.set(x, y, depth/2 + 0.05);
+                        obj.position.set(x, y, depth/2 + 0.1); // increased offset to avoid z-fighting
                         break;
                     case 1: // back
-                        obj.position.set(x, y, -depth/2 - 0.05);
+                        obj.position.set(x, y, -depth/2 - 0.1);
                         obj.rotation.y = Math.PI;
                         break;
                     case 2: // left
-                        obj.position.set(-width/2 - 0.05, y, x);
+                        obj.position.set(-width/2 - 0.1, y, x);
                         obj.rotation.y = -Math.PI/2;
                         break;
                     case 3: // right
-                        obj.position.set(width/2 + 0.05, y, x);
+                        obj.position.set(width/2 + 0.1, y, x);
                         obj.rotation.y = Math.PI/2;
                         break;
                 }
@@ -113,5 +113,14 @@ export function addOfficeWindows(target, width, height, depth, options = {}) {
         const inst = new THREE.InstancedMesh(windowGeo, darkMat, darkMatrices.length);
         darkMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
         target.add(inst);
+    }
+}
+
+export function clearOfficeWindows(target) {
+    for (let i = target.children.length - 1; i >= 0; i--) {
+        const child = target.children[i];
+        if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
+            target.remove(child);
+        }
     }
 }
