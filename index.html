@@ -322,6 +322,7 @@ function createBuilding(zPos=null){
             metalness: materialPreset.metalness * (0.8 + Math.random() * 0.4)
         });
         let useCylinder = false;
+        let skipWindows = false;
         if (s === 0) {
             segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
         } else {
@@ -334,6 +335,7 @@ function createBuilding(zPos=null){
             } else if (buildingStyle === 'pyramid' && s === segments - 1) {
                 segmentMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.min(currW, currD)/2, h, 4), buildingMaterial);
                 segmentParams.w = currW; segmentParams.d = currD;
+                skipWindows = true;
             } else {
                 segmentMesh = new THREE.Mesh(new THREE.BoxGeometry(currW, h, currD), buildingMaterial);
             }
@@ -354,7 +356,7 @@ function createBuilding(zPos=null){
             y1: yCursor + dims.h,
             dark: darkSegments.has(s)
         });
-        if(!useCylinder && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
+        if(!useCylinder && !skipWindows && Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
             const litProbability = darkSegments.has(s) ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY;
             addOfficeWindows(
                 segmentMesh,
