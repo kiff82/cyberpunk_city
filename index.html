@@ -54,8 +54,10 @@ const CONFIG={
             { name: "ReflectiveGlass", baseColor: 0x333333, roughness: 0.1, metalness: 1.0 }
         ],
         GREEBLE_DENSITY: 0.1,
-        DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333],
+        DISTRICT_COLORS: [0x222233,0x332222,0x223322,0x333333,
+                         0xfaa0c8,0xa0c8fa,0xfca0a0,0xa0fca0],
         DISTRICT_LENGTH: 800,
+        TUNNEL_BUILDING_PROBABILITY: 0.03,
         DARK_MIDDLE_PROBABILITY: 0.4,
         OFFICE_LIGHT_PROBABILITY: 0.05,
         UNLIT_SEGMENT_PROBABILITY: 0.5,
@@ -276,7 +278,66 @@ function getMeshDimensions(mesh) {
         d: bb.max.z - bb.min.z
     };
 }
+
+function createTunnelBuilding(zPos = null){
+    const group = new THREE.Group();
+    const buildingZ = zPos ?? (
+        camera.position.z - (
+            CONFIG.misc.VISIBLE_DEPTH + CONFIG.misc.SPAWN_PADDING +
+            Math.random() * CONFIG.misc.SPAWN_PADDING
+        )
+    );
+    const wallT = 30;
+    const corridorW = CONFIG.city.CORRIDOR_WIDTH;
+    const corridorH = 280;
+    const depth = Math.random()*400 + 300;
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x2a2a32,
+        roughness: 0.6,
+        metalness: 0.5
+    });
+
+    const fullH = corridorH + wallT*2;
+    const fullW = corridorW + wallT*2;
+
+    const left = new THREE.Mesh(new THREE.BoxGeometry(wallT, fullH, depth), material);
+    left.position.set(-(corridorW/2 + wallT/2), fullH/2, 0);
+    group.add(left);
+
+    const right = left.clone();
+    right.position.x = -left.position.x;
+    group.add(right);
+
+    const top = new THREE.Mesh(new THREE.BoxGeometry(fullW, wallT, depth), material);
+    top.position.set(0, fullH - wallT/2, 0);
+    group.add(top);
+
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(fullW, wallT, depth), material);
+    bottom.position.set(0, wallT/2, 0);
+    group.add(bottom);
+
+    [left,right,top,bottom].forEach(part=>{
+        const dims = getMeshDimensions(part);
+        addOfficeWindows(part, dims.w, dims.h, dims.d, {
+            litProbability: CONFIG.city.OFFICE_LIGHT_PROBABILITY,
+            litMat: LIT_MATS[Math.floor(Math.random()*LIT_MATS.length)]
+        });
+        addNeons(part, dims.w, dims.d, dims.h, true);
+    });
+
+    const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+    group.position.set(0, baseOffsetY, buildingZ);
+    group.userData.base = {w: fullW, d: depth, h: fullH};
+    group.userData.baseSegment = null;
+    group.userData.baseSegmentDark = false;
+    group.userData.segmentsInfo = [];
+    group.userData.districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
+    return group;
+}
 function createBuilding(zPos=null){
+    if(Math.random() < CONFIG.city.TUNNEL_BUILDING_PROBABILITY){
+        return createTunnelBuilding(zPos);
+    }
     const g = new THREE.Group();
     const buildingZ = zPos ?? (
         camera.position.z - (
@@ -286,7 +347,8 @@ function createBuilding(zPos=null){
     );
     const districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
     const districtTint = new THREE.Color(CONFIG.city.DISTRICT_COLORS[districtIndex]);
-    const segments = Math.floor(Math.random()*4)+2;
+    const isPastelDistrict = districtIndex >= 4;
+    const segments = isPastelDistrict ? Math.floor(Math.random()*2)+1 : Math.floor(Math.random()*4)+2;
     const darkSegments = new Set();
     if(Math.random() < CONFIG.city.DARK_MIDDLE_PROBABILITY){
         darkSegments.add(Math.floor(segments/2));
@@ -310,12 +372,16 @@ function createBuilding(zPos=null){
     else if(rStyle < 0.75) buildingStyle='stacked_boxes';
     else buildingStyle='pyramid';
     for(let s=0; s<segments; s++){
-        const h = Math.random()*180+50;
+        const h = isPastelDistrict ? Math.random()*120+40 : Math.random()*180+50;
         let segmentMesh;
         let segmentParams = { w: currW, h: h, d: currD };
         const materialPreset = CONFIG.city.BUILDING_MATERIAL_PRESETS[Math.floor(Math.random() * CONFIG.city.BUILDING_MATERIAL_PRESETS.length)];
         // Use darker versions of the presets and avoid any brown tint
-        const baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.5 + Math.random() * 0.3);
+        let baseColor = new THREE.Color(materialPreset.baseColor).multiplyScalar(0.5 + Math.random() * 0.3);
+        baseColor = baseColor.multiply(districtTint);
+        if(isPastelDistrict){
+            baseColor.lerp(new THREE.Color(0xffffff), 0.3);
+        }
         const buildingMaterial = new THREE.MeshStandardMaterial({
             color: baseColor,
             roughness: materialPreset.roughness * (0.8 + Math.random() * 0.4),
