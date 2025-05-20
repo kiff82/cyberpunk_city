@@ -58,6 +58,8 @@ const CONFIG={
                          0xfaa0c8,0xa0c8fa,0xfca0a0,0xa0fca0],
         DISTRICT_LENGTH: 800,
         TUNNEL_BUILDING_PROBABILITY: 0.03,
+        TUNNEL_MIN_Y_OFFSET: 150,
+        TUNNEL_Y_RANDOM_RANGE: 250,
         DARK_MIDDLE_PROBABILITY: 0.4,
         OFFICE_LIGHT_PROBABILITY: 0.05,
         UNLIT_SEGMENT_PROBABILITY: 0.5,
@@ -132,6 +134,10 @@ const neonSigns=[];
 let lastNeonShuffle=0;
 let rain, rainPositions;
 let currentTrackedCarX = 0;
+let cameraBaseY = CONFIG.camera.BASE_HEIGHT;
+let cameraBaseYTarget = CONFIG.camera.BASE_HEIGHT;
+let trafficYOffset = 0;
+let trafficYOffsetTarget = 0;
 // List any video files you want to use for the billboard animation.
 const commercialVideoFiles = [
     './assets/megacorp_commercial/mega_corp_commercial_1.mp4',
@@ -325,13 +331,17 @@ function createTunnelBuilding(zPos = null){
         addNeons(part, dims.w, dims.d, dims.h, true);
     });
 
-    const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+    const baseOffsetY = CONFIG.city.TUNNEL_MIN_Y_OFFSET + Math.random()*CONFIG.city.TUNNEL_Y_RANDOM_RANGE;
     group.position.set(0, baseOffsetY, buildingZ);
     group.userData.base = {w: fullW, d: depth, h: fullH};
     group.userData.baseSegment = null;
     group.userData.baseSegmentDark = false;
     group.userData.segmentsInfo = [];
     group.userData.districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
+    group.userData.isTunnel = true;
+    group.userData.corridorH = corridorH;
+    group.userData.wallT = wallT;
+    group.userData.tunnelCenterY = baseOffsetY + wallT + corridorH/2;
     return group;
 }
 function createBuilding(zPos=null){
@@ -511,6 +521,7 @@ function createBuilding(zPos=null){
     g.userData.baseSegmentDark = baseSegmentDark;
     g.userData.segmentsInfo = segmentsInfo;
     g.userData.districtIndex = districtIndex;
+    g.userData.isTunnel = false;
     return g;
 }
 function addNeons(parent,w,d,h_geom, enabled=true){
@@ -756,9 +767,10 @@ function createZAxisVehicle(zPos = null) {
     }
 
     // Initial X, Z position (Z-axis traffic)
+    g.userData.baseLaneY = vehicleY;
     g.position.set(
         (Math.random()-0.5)*(CONFIG.city.CORRIDOR_WIDTH * (g.userData.type === 'truck' ? 0.5 : 0.6)),
-        vehicleY,
+        vehicleY + trafficYOffset,
         zPos ?? (camera.position.z - Math.random() * CONFIG.misc.VISIBLE_DEPTH)
     );
     return g;
@@ -803,8 +815,9 @@ function createXAxisVehicle(junctionIndex) {
     }
 
     // Initial X position (X-axis traffic)
+    g.userData.baseLaneY = vehicleY_X;
     g.position.x = (Math.random() - 0.5) * config.JUNCTION_X_TRAVEL_WIDTH;
-    g.position.y = vehicleY_X;
+    g.position.y = vehicleY_X + trafficYOffset;
     // Z position is dynamic, will be set in animate() based on junctionIndex and camera position
 
     g.userData.junctionIndex = junctionIndex;
@@ -1002,6 +1015,13 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
+            const baseOffsetY = b.userData.isTunnel
+                ? CONFIG.city.TUNNEL_MIN_Y_OFFSET + Math.random()*CONFIG.city.TUNNEL_Y_RANDOM_RANGE
+                : CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+            b.position.y = baseOffsetY;
+            if(b.userData.isTunnel){
+                b.userData.tunnelCenterY = baseOffsetY + b.userData.wallT + b.userData.corridorH/2;
+            }
             b.updateMatrixWorld(true);
 
             const districtIndex = Math.floor(Math.abs(b.position.z)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
@@ -1129,6 +1149,28 @@ function animate(){
 
     camera.position.z -= CONFIG.camera.SPEED * delta;
 
+    const approachDist = 800;
+    let nextTunnel = null;
+    let minDz = Infinity;
+    buildings.forEach(b => {
+        if(b.userData && b.userData.isTunnel){
+            const dz = b.position.z - camera.position.z;
+            if(dz < -50 && dz > -approachDist && Math.abs(dz) < Math.abs(minDz)){
+                minDz = dz;
+                nextTunnel = b;
+            }
+        }
+    });
+    if(nextTunnel){
+        cameraBaseYTarget = nextTunnel.userData.tunnelCenterY;
+        trafficYOffsetTarget = cameraBaseYTarget - CONFIG.camera.BASE_HEIGHT;
+    } else {
+        cameraBaseYTarget = CONFIG.camera.BASE_HEIGHT;
+        trafficYOffsetTarget = 0;
+    }
+    cameraBaseY += (cameraBaseYTarget - cameraBaseY) * 0.02;
+    trafficYOffset += (trafficYOffsetTarget - trafficYOffset) * 0.02;
+
     // Camera X-sway logic (based on Z-axis cars)
     let closestLeadCarX = null; let minDzAbs = Infinity;
     for(let i=0;i<carsZ.length;i++){ const c=carsZ[i]; const dz=c.position.z - camera.position.z; // carsZ
@@ -1140,17 +1182,21 @@ function animate(){
     let finalCameraTargetX = currentTrackedCarX;
     finalCameraTargetX += Math.sin(t * CONFIG.camera.SWAY_FREQUENCY) * CONFIG.camera.SWAY_AMPLITUDE;
     camera.position.x += (finalCameraTargetX - camera.position.x) * CONFIG.camera.X_POS_LERP_FACTOR * lerpFactorCorrection;
-    camera.position.y = CONFIG.camera.BASE_HEIGHT + Math.sin(t*0.6)*2;
+    camera.position.y = cameraBaseY + Math.sin(t*0.6)*2;
     const bankAmount = (finalCameraTargetX - camera.position.x) * 0.005;
     camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, -bankAmount, CONFIG.camera.BANK_LERP_FACTOR * lerpFactorCorrection);
     camera.lookAt(camera.position.x, camera.position.y-3, camera.position.z-100);
 
     // Animate Z-axis cars
-    carsZ.forEach(c => c.position.z -= c.userData.speed * delta); // carsZ
+    carsZ.forEach(c => {
+        c.position.z -= c.userData.speed * delta;
+        c.position.y = c.userData.baseLaneY + trafficYOffset;
+    }); // carsZ
 
     // Animate X-axis cars
     carsX.forEach(c => {
         c.position.x += c.userData.speedX * delta;
+        c.position.y = c.userData.baseLaneY + trafficYOffset;
         // Update Z position to keep it relative to camera for the junction effect
         c.position.z = camera.position.z
                        + CONFIG.trafficX.JUNCTION_Z_OFFSETS[c.userData.junctionIndex]
