@@ -566,7 +566,8 @@ function addNeons(parent,w,d,h_geom, enabled=true){
         transparent:true,
         opacity: Math.random() * 0.3 + 0.4,
         side:THREE.DoubleSide,
-        blending:THREE.AdditiveBlending
+        blending:THREE.AdditiveBlending,
+        toneMapped:false
     });
     const inst = new THREE.InstancedMesh(NEON_SIGN_GEO, signMaterial, count);
     inst.userData.isNeonSign = true;
