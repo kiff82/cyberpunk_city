@@ -102,8 +102,8 @@ const CONFIG={
         BANK_LERP_FACTOR: 0.05
     },
     effects:{
-        BLOOM_STRENGTH: 2.0,
-        BLOOM_THRESHOLD: 0.5,
+        BLOOM_STRENGTH: 1.5,
+        BLOOM_THRESHOLD: 0.3,
         ENABLE_RAIN: false,
         RAIN_COUNT: 400,
         RAIN_SPEED:330,
@@ -559,8 +559,8 @@ function addNeons(parent,w,d,h_geom, enabled=true){
     if(!enabled) return;
     const count=Math.floor(Math.random()*5)+3;
     const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-    // Brighter neon signs to enhance bloom
-    const intensityFactor = 2.0 + Math.random() * 2.0;
+    // Slightly dimmer signs with randomized tiers
+    const intensityFactor = 1.5 + Math.random() * 1.0; // 1.5 - 2.5
     const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
     const signMaterial = new THREE.MeshBasicMaterial({
         color: finalNeonColor,
