@@ -558,7 +558,8 @@ function addNeons(parent,w,d,h_geom, enabled=true){
     if(!enabled) return;
     const count=Math.floor(Math.random()*5)+3;
     const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-    const intensityFactor = 1.2 + Math.random() * 1.0;
+    // Slightly brighter neon signs
+    const intensityFactor = 1.6 + Math.random() * 1.5;
     const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
     const signMaterial = new THREE.MeshBasicMaterial({
         color: finalNeonColor,
@@ -1176,7 +1177,8 @@ function animate(){
         neonSigns.forEach(s=>{
             if(s.material && s.material.color){
                 const base = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-                const intensity = 1.2 + Math.random();
+                // Keep shuffle brightness consistent with initial creation
+                const intensity = 1.6 + Math.random() * 1.5;
                 s.material.color.copy(base.multiplyScalar(intensity));
             }
         });
