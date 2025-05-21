@@ -103,6 +103,7 @@ const CONFIG={
     },
     effects:{
         BLOOM_STRENGTH: 2.0,
+        BLOOM_THRESHOLD: 0.5,
         ENABLE_RAIN: false,
         RAIN_COUNT: 400,
         RAIN_SPEED:330,
@@ -220,7 +221,7 @@ function init(){
         new THREE.Vector2(window.innerWidth, window.innerHeight),
         CONFIG.effects.BLOOM_STRENGTH,
         0.4,
-        0.8
+        CONFIG.effects.BLOOM_THRESHOLD
     );
     composer.addPass(bloomPass);
 
@@ -558,13 +559,13 @@ function addNeons(parent,w,d,h_geom, enabled=true){
     if(!enabled) return;
     const count=Math.floor(Math.random()*5)+3;
     const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-    // Slightly brighter neon signs
-    const intensityFactor = 1.6 + Math.random() * 1.5;
+    // Brighter neon signs to enhance bloom
+    const intensityFactor = 2.0 + Math.random() * 2.0;
     const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
     const signMaterial = new THREE.MeshBasicMaterial({
         color: finalNeonColor,
         transparent:true,
-        opacity: Math.random() * 0.3 + 0.4,
+        opacity: Math.random() * 0.4 + 0.6,
         side:THREE.DoubleSide,
         blending:THREE.AdditiveBlending,
         toneMapped:false

@@ -43,6 +43,14 @@ CONFIG.misc.ENABLE_FLICKER = false;
 
 Reload the page after editing the file to see the change.
 
+To adjust how strongly neon signs glow, tweak the bloom threshold:
+
+```javascript
+CONFIG.effects.BLOOM_THRESHOLD = 0.5; // lower values produce more bloom
+```
+
+A page reload applies the new setting.
+
 ## Customizing the commercial video
 
 The neon billboard loads videos from `assets/megacorp_commercial`.
