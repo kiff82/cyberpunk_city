@@ -325,13 +325,14 @@ function createTunnelBuilding(zPos = null){
         addNeons(part, dims.w, dims.d, dims.h, true);
     });
 
-    const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+    const baseOffsetY = CONFIG.camera.BASE_HEIGHT - (wallT + corridorH/2);
     group.position.set(0, baseOffsetY, buildingZ);
     group.userData.base = {w: fullW, d: depth, h: fullH};
     group.userData.baseSegment = null;
     group.userData.baseSegmentDark = false;
     group.userData.segmentsInfo = [];
     group.userData.districtIndex = Math.floor(Math.abs(buildingZ)/CONFIG.city.DISTRICT_LENGTH)%CONFIG.city.DISTRICT_COLORS.length;
+    group.userData.isTunnel = true;
     return group;
 }
 function createBuilding(zPos=null){
@@ -511,6 +512,7 @@ function createBuilding(zPos=null){
     g.userData.baseSegmentDark = baseSegmentDark;
     g.userData.segmentsInfo = segmentsInfo;
     g.userData.districtIndex = districtIndex;
+    g.userData.isTunnel = false;
     return g;
 }
 function addNeons(parent,w,d,h_geom, enabled=true){
@@ -1002,7 +1004,12 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             const side = Math.random() < 0.5 ? -1 : 1;
             const minX = CONFIG.city.CORRIDOR_WIDTH / 2 + b.userData.base.w / 2 + 6;
             b.position.x = side * (minX + Math.random() * (CONFIG.city.CITY_RADIUS - minX));
-            const baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+            let baseOffsetY;
+            if(b.userData.isTunnel){
+                baseOffsetY = CONFIG.camera.BASE_HEIGHT - (30 + 280/2);
+            } else {
+                baseOffsetY = CONFIG.city.BUILDING_MIN_Y_OFFSET + Math.random()*CONFIG.city.BUILDING_Y_RANDOM_RANGE;
+            }
             b.position.y = baseOffsetY;
             b.updateMatrixWorld(true);
 
