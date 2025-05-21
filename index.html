@@ -162,12 +162,40 @@ const commercialImageFiles = [
 
 const COMMERCIAL_ASPECT_RATIO = 2 / 3;
 
+// Shared resources to reduce per-object allocations
+const videoTextures = [];
+const NEON_SIGN_GEO = new THREE.PlaneGeometry(1, 1);
+
+function initVideoTextures(){
+    commercialVideoFiles.forEach(src => {
+        const video = document.createElement('video');
+        video.src = src;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.crossOrigin = 'anonymous';
+        video.play().catch(err => {
+            console.warn('Commercial video failed to autoplay:', err);
+        });
+        const texture = new THREE.VideoTexture(video);
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        videoTextures.push(texture);
+    });
+}
+
 /* ---------- INIT ---------- */
 
 function init(){
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x060812);
     scene.fog=new THREE.FogExp2(0x101520, 0.0012);
+
+    initVideoTextures();
 
     camera=new THREE.PerspectiveCamera(
         75,
@@ -528,48 +556,37 @@ function addNeons(parent,w,d,h_geom, enabled=true){
     }
     parent.userData.neonSigns=[];
     if(!enabled) return;
-    const n=Math.floor(Math.random()*5)+3;
-    for(let i=0;i<n;i++){
-        const face=Math.floor(Math.random()*4), nH_sign=Math.random()*7+2, nW_sign=(face<2?w:d)*(Math.random()*0.6+0.2);
-        const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
-        const intensityFactor = 1.2 + Math.random() * 1.0;
-        const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
-        const signMaterial = new THREE.MeshBasicMaterial({
-            color: finalNeonColor,
-            transparent:true,
-            opacity: Math.random() * 0.3 + 0.4,
-            side:THREE.DoubleSide,
-            blending:THREE.AdditiveBlending
-        });
-        const sign=new THREE.Mesh(new THREE.PlaneGeometry(nW_sign,nH_sign), signMaterial);
-        sign.position.y=(Math.random()-0.5)*(h_geom*0.85);
-        sign.userData.isNeonSign=true;
-        parent.userData.neonSigns.push(sign);
-        neonSigns.push(sign);
-        // Slight offset to prevent z-fighting and ensure sign renders over windows
+    const count=Math.floor(Math.random()*5)+3;
+    const baseNeonColor = new THREE.Color(CONFIG.misc.NEON_COLORS[Math.floor(Math.random()*CONFIG.misc.NEON_COLORS.length)]);
+    const intensityFactor = 1.2 + Math.random() * 1.0;
+    const finalNeonColor = baseNeonColor.clone().multiplyScalar(intensityFactor);
+    const signMaterial = new THREE.MeshBasicMaterial({
+        color: finalNeonColor,
+        transparent:true,
+        opacity: Math.random() * 0.3 + 0.4,
+        side:THREE.DoubleSide,
+        blending:THREE.AdditiveBlending
+    });
+    const inst = new THREE.InstancedMesh(NEON_SIGN_GEO, signMaterial, count);
+    inst.userData.isNeonSign = true;
+    const obj = new THREE.Object3D();
+    for(let i=0;i<count;i++){
+        const face=Math.floor(Math.random()*4);
+        const nH_sign=Math.random()*7+2;
+        const nW_sign=(face<2?w:d)*(Math.random()*0.6+0.2);
+        obj.position.set(0,0,0);
+        obj.rotation.set(0,0,0);
+        obj.scale.set(nW_sign, nH_sign, 1);
+        obj.position.y=(Math.random()-0.5)*(h_geom*0.85);
         const off=0.12;
-        switch(face){case 0:sign.position.z=d/2+off;break;case 1:sign.position.z=-d/2-off;sign.rotation.y=Math.PI;break;case 2:sign.position.x=w/2+off;sign.rotation.y=Math.PI/2;break;case 3:sign.position.x=-w/2-off;sign.rotation.y=-Math.PI/2;break;}
-        parent.add(sign);
-
-        const signBox = new THREE.Box3().setFromObject(sign);
-        signBox.expandByScalar(0.5);
-        const tmpMatrix = new THREE.Matrix4();
-        const tmpPos = new THREE.Vector3();
-        parent.traverse(child => {
-            if(child.isInstancedMesh && child.geometry === WINDOW_GEO){
-                for(let idx=0; idx<child.count; idx++){
-                    child.getMatrixAt(idx, tmpMatrix);
-                    tmpPos.setFromMatrixPosition(tmpMatrix);
-                    tmpPos.applyMatrix4(child.matrixWorld);
-                    if(signBox.containsPoint(tmpPos)){
-                        tmpMatrix.setPosition(9999,9999,9999);
-                        child.setMatrixAt(idx, tmpMatrix);
-                    }
-                }
-                child.instanceMatrix.needsUpdate = true;
-            }
-        });
+        switch(face){case 0:obj.position.z=d/2+off;break;case 1:obj.position.z=-d/2-off;obj.rotation.y=Math.PI;break;case 2:obj.position.x=w/2+off;obj.rotation.y=Math.PI/2;break;case 3:obj.position.x=-w/2-off;obj.rotation.y=-Math.PI/2;break;}
+        obj.updateMatrix();
+        inst.setMatrixAt(i, obj.matrix);
     }
+    inst.instanceMatrix.needsUpdate = true;
+    parent.userData.neonSigns.push(inst);
+    neonSigns.push(inst);
+    parent.add(inst);
 }
 function createInitialBuildings(){
     for(let i=0;i<CONFIG.city.NUM_BUILDINGS;i++){
@@ -930,24 +947,7 @@ function createCommercialBillboard(type = 'video'){
             const tex = loader.load(commercialImageFiles[Math.floor(Math.random() * commercialImageFiles.length)]);
             material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
         } else {
-            const video = document.createElement('video');
-            video.src = commercialVideoFiles[Math.floor(Math.random() * commercialVideoFiles.length)];
-            video.loop = true;
-            video.muted = true;
-            video.playsInline = true;
-            video.autoplay = true;
-            video.crossOrigin = 'anonymous';
-            video.play().catch(err => {
-                console.warn('Commercial video failed to autoplay:', err);
-            });
-
-            const texture = new THREE.VideoTexture(video);
-            texture.wrapS = THREE.ClampToEdgeWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
-
+            const texture = videoTextures[Math.floor(Math.random() * videoTextures.length)];
             material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         }
 
@@ -1028,37 +1028,11 @@ function recycle(){ // This function now primarily recycles buildings and Z-axis
             });
             b.userData.districtIndex = districtIndex;
 
-            if (Array.isArray(b.userData.segmentsInfo)) {
-                b.userData.segmentsInfo.forEach(info => {
-                    if (info.mesh && info.mesh.geometry) {
-                        const dims = getMeshDimensions(info.mesh);
-                        info.w = dims.w; info.h = dims.h; info.d = dims.d;
-                        info.dark = Math.random() < CONFIG.city.UNLIT_SEGMENT_PROBABILITY;
-                        addNeons(info.mesh, info.w, info.d, info.h, info.dark);
-
-                        const toRemove = [];
-                        info.mesh.traverse(child => {
-                            if (child.isInstancedMesh && child.geometry === WINDOW_GEO) {
-                                toRemove.push(child);
-                            }
-                        });
-                        toRemove.forEach(child => info.mesh.remove(child));
-
-                        if(Math.random() < CONFIG.city.WINDOW_SEGMENT_PROBABILITY){
-                            addOfficeWindows(
-                                info.mesh,
-                                info.w,
-                                info.h,
-                                info.d,
-                                {
-                                    litProbability: info.dark ? 0 : CONFIG.city.OFFICE_LIGHT_PROBABILITY,
-                                    litMat: LIT_MATS[Math.floor(Math.random() * LIT_MATS.length)]
-                                }
-                            );
-                        }
-                    }
-                });
-            }
+            // Skip expensive regeneration of neon signs and windows on recycle
+            // to avoid allocations. Previously we recalculated dimensions and
+            // rebuilt InstancedMesh data each time a building wrapped around.
+            // The existing meshes remain in place so only position updates are
+            // required here.
         }
     });
 
