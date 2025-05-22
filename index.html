@@ -858,6 +858,21 @@ function createInitialXVehicles(){
 function pickRandomBuilding(){
     return buildings[Math.floor(Math.random()*buildings.length)];
 }
+
+// Pick a building with a large surface area that is not a tunnel
+// so billboards don't appear inside tunnel openings
+function pickLargeSurfaceBuilding(){
+    const candidates = buildings.filter(b => {
+        if (!b.userData || b.userData.isTunnel) return false;
+        const base = b.userData.base;
+        if (!base) return false;
+        return Math.max(base.w, base.d) > 40;
+    });
+    if (candidates.length === 0) {
+        return pickRandomBuilding();
+    }
+    return candidates[Math.floor(Math.random()*candidates.length)];
+}
 function placeBillboardOnBuilding(bb, building, face = null, segmentInfo = null){
     building.add(bb);
     bb.position.set(0,0,0);
@@ -906,13 +921,13 @@ function createBillboard(){
         side:THREE.DoubleSide
     });
     const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), billboardMaterial);
-    const building = pickRandomBuilding();
+    const building = pickLargeSurfaceBuilding();
     const segInfo = Array.isArray(building.userData.segmentsInfo) ? building.userData.segmentsInfo[Math.floor(Math.random()*building.userData.segmentsInfo.length)] : null;
     placeBillboardOnBuilding(plane, building, null, segInfo);
     return plane;
 }
 function createCommercialBillboard(type = 'video'){
-    const building = pickRandomBuilding();
+    const building = pickLargeSurfaceBuilding();
     const segInfo = Array.isArray(building.userData.segmentsInfo) ? building.userData.segmentsInfo[Math.floor(Math.random()*building.userData.segmentsInfo.length)] : null;
     const face = Math.floor(Math.random() * 4);
     const dims = segInfo || building.userData.base;
