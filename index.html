@@ -126,7 +126,8 @@ const CONFIG={
         ENABLE_FLICKER:true,
         NEON_SHUFFLE_INTERVAL:8
     },
-    PLAYER_CAR_ROTATION_Y: Math.PI / 2
+    PLAYER_CAR_ROTATION_Y: Math.PI / 2,
+    PLAYER_CAR_FILES: []
 };
 
 /* ---------- GLOBALS ---------- */
@@ -198,12 +199,20 @@ function initVideoTextures(){
 
 async function loadPlayerCar(){
     try{
-        const res = await fetch('./main_car/');
-        if(!res.ok) throw new Error('Directory not accessible');
-        const text = await res.text();
-        const matches = [...text.matchAll(/href="([^"?#]+\.(?:glb|ply))"/gi)].map(m=>m[1]);
-        if(matches.length === 0) throw new Error('No model files found');
-        const file = matches[Math.floor(Math.random()*matches.length)];
+        let files = Array.isArray(CONFIG.PLAYER_CAR_FILES) ? [...CONFIG.PLAYER_CAR_FILES] : [];
+
+        if(files.length === 0){
+            const res = await fetch('./main_car/');
+            if(res.ok){
+                const text = await res.text();
+                files = [...text.matchAll(/href="([^"?#]+\.(?:glb|ply))"/gi)].map(m=>m[1]);
+            }else{
+                console.warn('Directory listing not accessible:', res.statusText);
+            }
+        }
+
+        if(files.length === 0) throw new Error('No model files found');
+        const file = files[Math.floor(Math.random()*files.length)];
 
         if(file.toLowerCase().endsWith('.ply')){
             const loader = new PLYLoader();
