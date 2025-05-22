@@ -202,6 +202,16 @@ async function loadPlayerCar(){
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync(`./main_car/${file}`);
         playerCar = gltf.scene;
+        // GLB models may have arbitrary orientation. Rotate so the car faces -Z
+        playerCar.rotation.y = Math.PI / 2;
+
+        // Ensure the model is sufficiently lit and visible
+        playerCar.traverse(n => {
+            if(n.isMesh && n.material){
+                n.material.side = THREE.DoubleSide;
+            }
+        });
+
         playerCar.position.set(0,5,-50);
         scene.add(playerCar);
     }catch(err){
