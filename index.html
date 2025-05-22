@@ -137,6 +137,9 @@ const neonSigns=[];
 let lastNeonShuffle=0;
 let rain, rainPositions;
 let currentTrackedCarX = 0;
+const keyState = { ArrowLeft:false, ArrowRight:false, ArrowUp:false, ArrowDown:false };
+window.addEventListener('keydown', e => { if(e.code in keyState) keyState[e.code] = true; });
+window.addEventListener('keyup', e => { if(e.code in keyState) keyState[e.code] = false; });
 // List any video files you want to use for the billboard animation.
 const commercialVideoFiles = [
     './assets/megacorp_commercial/mega_corp_commercial_1.mp4',
@@ -223,12 +226,12 @@ async function loadPlayerCar(){
             }
         });
 
-        playerCar.position.set(0,5,-50);
+        playerCar.position.set(0, CONFIG.camera.BASE_HEIGHT, -50);
         scene.add(playerCar);
     }catch(err){
         console.warn('Falling back to demo car:', err);
         playerCar = createSimpleCar({ bodyColor: 0x222222, roughness:0.6, metalness:0.7 });
-        playerCar.position.set(0,5,-50);
+        playerCar.position.set(0, CONFIG.camera.BASE_HEIGHT, -50);
         scene.add(playerCar);
     }
 }
@@ -1185,6 +1188,12 @@ function animate(){
         let finalTargetX = currentTrackedCarX;
         finalTargetX += Math.sin(t * CONFIG.camera.SWAY_FREQUENCY) * CONFIG.camera.SWAY_AMPLITUDE;
         playerCar.position.x += (finalTargetX - playerCar.position.x) * CONFIG.camera.X_POS_LERP_FACTOR * lerpFactorCorrection;
+
+        const rotSpeed = 1.5; // radians per second
+        if(keyState.ArrowLeft)  playerCar.rotation.y += rotSpeed * delta;
+        if(keyState.ArrowRight) playerCar.rotation.y -= rotSpeed * delta;
+        if(keyState.ArrowUp)    playerCar.rotation.x += rotSpeed * delta;
+        if(keyState.ArrowDown)  playerCar.rotation.x -= rotSpeed * delta;
     }
 
     camera.position.copy(playerCar.position);
