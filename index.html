@@ -35,6 +35,7 @@ import { setupBasicLights } from "./src/environment.js";
 import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO, LIT_MATS } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 
 /* ---------- CONFIG ---------- */
 const CONFIG={
@@ -196,12 +197,21 @@ async function loadPlayerCar(){
         const res = await fetch('./main_car/');
         if(!res.ok) throw new Error('Directory not accessible');
         const text = await res.text();
-        const matches = [...text.matchAll(/href="([^"?#]+\.glb)"/gi)].map(m=>m[1]);
-        if(matches.length === 0) throw new Error('No GLB files found');
+        const matches = [...text.matchAll(/href="([^"?#]+\.(?:glb|ply))"/gi)].map(m=>m[1]);
+        if(matches.length === 0) throw new Error('No model files found');
         const file = matches[Math.floor(Math.random()*matches.length)];
-        const loader = new GLTFLoader();
-        const gltf = await loader.loadAsync(`./main_car/${file}`);
-        playerCar = gltf.scene;
+
+        if(file.toLowerCase().endsWith('.ply')){
+            const loader = new PLYLoader();
+            const geometry = await loader.loadAsync(`./main_car/${file}`);
+            geometry.computeVertexNormals();
+            const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+            playerCar = new THREE.Mesh(geometry, material);
+        }else{
+            const loader = new GLTFLoader();
+            const gltf = await loader.loadAsync(`./main_car/${file}`);
+            playerCar = gltf.scene;
+        }
         // GLB models may have arbitrary orientation. Rotate so the car faces -Z
         playerCar.rotation.y = Math.PI / 2;
 

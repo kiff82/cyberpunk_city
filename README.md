@@ -61,10 +61,10 @@ different filenames.
 
 ## Custom player car
 
-Add one or more `.glb` files to the `main_car` directory. When the page loads,
-one of these models will be chosen at random and followed from a third-person
-perspective. If the folder is empty or the files cannot be loaded, a simple
-placeholder car is used instead.
+Add one or more `.glb` or `.ply` files to the `main_car` directory. When the
+page loads, one of these models will be chosen at random and followed from a
+third-person perspective. If the folder is empty or the files cannot be loaded,
+a simple placeholder car is used instead.
 
 
 ## Running on GitHub Pages
