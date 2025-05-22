@@ -34,6 +34,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { setupBasicLights } from "./src/environment.js";
 import { createSimpleBuilding, addOfficeWindows, WINDOW_GEO, LIT_MATS } from "./src/buildings.js";
 import { createSimpleCar } from "./src/cars.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 /* ---------- CONFIG ---------- */
 const CONFIG={
@@ -128,6 +129,7 @@ const CONFIG={
 
 /* ---------- GLOBALS ---------- */
 let scene,camera,renderer,composer,clock;
+let playerCar = null;
 const buildings=[], carsZ=[], carsX=[], billboards=[]; // cars renamed to carsZ, carsX added
 const neonSigns=[];
 let lastNeonShuffle=0;
@@ -185,13 +187,34 @@ function initVideoTextures(){
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.generateMipmaps = false;
-        videoTextures.push(texture);
+    videoTextures.push(texture);
     });
+}
+
+async function loadPlayerCar(){
+    try{
+        const res = await fetch('./main_car/');
+        if(!res.ok) throw new Error('Directory not accessible');
+        const text = await res.text();
+        const matches = [...text.matchAll(/href="([^"?#]+\.glb)"/gi)].map(m=>m[1]);
+        if(matches.length === 0) throw new Error('No GLB files found');
+        const file = matches[Math.floor(Math.random()*matches.length)];
+        const loader = new GLTFLoader();
+        const gltf = await loader.loadAsync(`./main_car/${file}`);
+        playerCar = gltf.scene;
+        playerCar.position.set(0,5,-50);
+        scene.add(playerCar);
+    }catch(err){
+        console.warn('Falling back to demo car:', err);
+        playerCar = createSimpleCar({ bodyColor: 0x222222, roughness:0.6, metalness:0.7 });
+        playerCar.position.set(0,5,-50);
+        scene.add(playerCar);
+    }
 }
 
 /* ---------- INIT ---------- */
 
-function init(){
+async function init(){
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x060812);
     scene.fog=new THREE.FogExp2(0x101520, 0.0012);
@@ -256,13 +279,7 @@ function init(){
     scene.add(extraBuilding);
     buildings.push(extraBuilding);
 
-    const demoCar = createSimpleCar({
-        bodyColor: 0x222222,
-        roughness: 0.6,
-        metalness: 0.7
-    });
-    demoCar.position.set(0, 5, -50);
-    scene.add(demoCar);
+    await loadPlayerCar();
 
     window.addEventListener('resize',onResize);
     animate();
@@ -1128,24 +1145,31 @@ function animate(){
     const delta = clock.getDelta();
     const t = clock.getElapsedTime();
 
-    camera.position.z -= CONFIG.camera.SPEED * delta;
+    if(playerCar){
+        playerCar.position.z -= CONFIG.camera.SPEED * delta;
 
+        // X-sway logic (based on Z-axis cars)
+        let closestLeadCarX = null; let minDzAbs = Infinity;
+        for(let i=0;i<carsZ.length;i++){
+            const c = carsZ[i];
+            const dz = c.position.z - playerCar.position.z;
+            if(dz < -CONFIG.camera.MIN_LEAD_CAR_DISTANCE && dz > -CONFIG.camera.MAX_LEAD_CAR_DISTANCE){
+                if(Math.abs(dz) < minDzAbs){ minDzAbs = Math.abs(dz); closestLeadCarX = c.position.x; }
+            }
+        }
+        let leadCarInfluenceX = 0;
+        if(closestLeadCarX !== null){ leadCarInfluenceX = closestLeadCarX * 0.7; }
+        const lerpFactorCorrection = delta * 60;
+        currentTrackedCarX += (leadCarInfluenceX - currentTrackedCarX) * CONFIG.camera.X_TARGET_LERP_FACTOR * lerpFactorCorrection;
+        let finalTargetX = currentTrackedCarX;
+        finalTargetX += Math.sin(t * CONFIG.camera.SWAY_FREQUENCY) * CONFIG.camera.SWAY_AMPLITUDE;
+        playerCar.position.x += (finalTargetX - playerCar.position.x) * CONFIG.camera.X_POS_LERP_FACTOR * lerpFactorCorrection;
+    }
 
-    // Camera X-sway logic (based on Z-axis cars)
-    let closestLeadCarX = null; let minDzAbs = Infinity;
-    for(let i=0;i<carsZ.length;i++){ const c=carsZ[i]; const dz=c.position.z - camera.position.z; // carsZ
-        if(dz < -CONFIG.camera.MIN_LEAD_CAR_DISTANCE && dz > -CONFIG.camera.MAX_LEAD_CAR_DISTANCE){
-            if(Math.abs(dz) < minDzAbs){ minDzAbs = Math.abs(dz); closestLeadCarX = c.position.x; } } }
-    let leadCarInfluenceX = 0; if(closestLeadCarX !== null){ leadCarInfluenceX = closestLeadCarX * 0.7; }
-    const lerpFactorCorrection = delta * 60;
-    currentTrackedCarX += (leadCarInfluenceX - currentTrackedCarX) * CONFIG.camera.X_TARGET_LERP_FACTOR * lerpFactorCorrection;
-    let finalCameraTargetX = currentTrackedCarX;
-    finalCameraTargetX += Math.sin(t * CONFIG.camera.SWAY_FREQUENCY) * CONFIG.camera.SWAY_AMPLITUDE;
-    camera.position.x += (finalCameraTargetX - camera.position.x) * CONFIG.camera.X_POS_LERP_FACTOR * lerpFactorCorrection;
-    camera.position.y = CONFIG.camera.BASE_HEIGHT + Math.sin(t*0.6)*2;
-    const bankAmount = (finalCameraTargetX - camera.position.x) * 0.005;
-    camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, -bankAmount, CONFIG.camera.BANK_LERP_FACTOR * lerpFactorCorrection);
-    camera.lookAt(camera.position.x, camera.position.y-3, camera.position.z-100);
+    camera.position.copy(playerCar.position);
+    camera.position.y += 8;
+    camera.position.z += 20;
+    camera.lookAt(playerCar.position.x, playerCar.position.y + 3, playerCar.position.z - 20);
 
     // Animate Z-axis cars
     carsZ.forEach(c => {
@@ -1233,7 +1257,7 @@ function animate(){
 function onResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); composer.setSize(window.innerWidth,window.innerHeight);}
 
 // Initialize scene once the module loads
-init();
+init().catch(err => console.error(err));
 </script>
 </body>
 </html>

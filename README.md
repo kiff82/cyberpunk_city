@@ -59,6 +59,13 @@ loops that clip independently. Replace the provided placeholders with your own
 clips if desired. Edit `commercialVideoFiles` in `index.html` when using
 different filenames.
 
+## Custom player car
+
+Add one or more `.glb` files to the `main_car` directory. When the page loads,
+one of these models will be chosen at random and followed from a third-person
+perspective. If the folder is empty or the files cannot be loaded, a simple
+placeholder car is used instead.
+
 
 ## Running on GitHub Pages
 
