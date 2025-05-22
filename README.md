@@ -69,6 +69,10 @@ a simple placeholder car is used instead.
 If your model faces a different direction, adjust `CONFIG.PLAYER_CAR_ROTATION_Y`
 in `index.html`. The value is in radians and defaults to `Math.PI / 2` (90°).
 
+Imported meshes can appear too dark or shiny under the default lighting.
+Tweak the materials or modify the lighting setup provided in
+`src/environment.js` if your car model needs extra attention.
+
 
 ## Running on GitHub Pages
 
