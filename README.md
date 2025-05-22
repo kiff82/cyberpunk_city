@@ -66,6 +66,16 @@ page loads, one of these models will be chosen at random and followed from a
 third-person perspective. If the folder is empty or the files cannot be loaded,
 a simple placeholder car is used instead.
 
+Most static hosting services (such as GitHub Pages) do not expose a directory
+listing for `main_car/`. If `loadPlayerCar` cannot list the folder, specify the
+filenames manually in `CONFIG.PLAYER_CAR_FILES` inside `index.html`:
+
+```javascript
+CONFIG.PLAYER_CAR_FILES = ['stylish_black_car.glb'];
+```
+
+The files should still be placed in the `main_car` directory.
+
 If your model faces a different direction, adjust `CONFIG.PLAYER_CAR_ROTATION_Y`
 in `index.html`. The value is in radians and defaults to `Math.PI / 2` (90°).
 
