@@ -66,6 +66,9 @@ page loads, one of these models will be chosen at random and followed from a
 third-person perspective. If the folder is empty or the files cannot be loaded,
 a simple placeholder car is used instead.
 
+If your model faces a different direction, adjust `CONFIG.PLAYER_CAR_ROTATION_Y`
+in `index.html`. The value is in radians and defaults to `Math.PI / 2` (90°).
+
 
 ## Running on GitHub Pages
 

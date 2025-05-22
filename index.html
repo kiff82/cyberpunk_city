@@ -125,7 +125,8 @@ const CONFIG={
         ],
         ENABLE_FLICKER:true,
         NEON_SHUFFLE_INTERVAL:8
-    }
+    },
+    PLAYER_CAR_ROTATION_Y: Math.PI / 2
 };
 
 /* ---------- GLOBALS ---------- */
@@ -212,8 +213,8 @@ async function loadPlayerCar(){
             const gltf = await loader.loadAsync(`./main_car/${file}`);
             playerCar = gltf.scene;
         }
-        // GLB models may have arbitrary orientation. Rotate so the car faces -Z
-        playerCar.rotation.y = Math.PI / 2;
+        // GLB models may have arbitrary orientation. Rotate based on config
+        playerCar.rotation.y = CONFIG.PLAYER_CAR_ROTATION_Y ?? Math.PI / 2;
 
         // Ensure the model is sufficiently lit and visible
         playerCar.traverse(n => {
