@@ -61,6 +61,9 @@ different filenames.
 
 ## Custom player car
 
+*Note: The current build disables the visible player car. The camera still
+follows an invisible placeholder object.*
+
 Add one or more `.glb` or `.ply` files to the `main_car` directory. When the
 page loads, one of these models will be chosen at random and followed from a
 third-person perspective. If the folder is empty or the files cannot be loaded,
