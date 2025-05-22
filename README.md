@@ -71,7 +71,7 @@ listing for `main_car/`. If `loadPlayerCar` cannot list the folder, specify the
 filenames manually in `CONFIG.PLAYER_CAR_FILES` inside `index.html`:
 
 ```javascript
-CONFIG.PLAYER_CAR_FILES = ['stylish_black_car.glb'];
+CONFIG.PLAYER_CAR_FILES = ['custom_sleek_car.glb'];
 ```
 
 The files should still be placed in the `main_car` directory.
