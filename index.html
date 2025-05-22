@@ -312,7 +312,11 @@ async function init(){
     scene.add(extraBuilding);
     buildings.push(extraBuilding);
 
-    await loadPlayerCar();
+    // Temporarily disable the visible player car. Instead create an invisible
+    // object for the camera to track so the rest of the animation logic works
+    // without modification.
+    playerCar = new THREE.Object3D();
+    playerCar.position.set(0, CONFIG.camera.BASE_HEIGHT, -50);
 
     window.addEventListener('resize',onResize);
     animate();
