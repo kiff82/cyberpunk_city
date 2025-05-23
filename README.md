@@ -27,7 +27,34 @@ script. Run the following command to serve the files:
 npm start
 ```
 
+
 The first time you run this command, install dependencies with `npm install`.
+
+### Using local Three.js modules
+
+By default the scene pulls modules from the CDN. To run offline, download the
+library and point the import map at the local copy:
+
+```bash
+npm install three@0.160.0
+```
+
+This places the files under `node_modules/`. Update the import map in
+`index.html` so it references those paths instead of the CDN:
+
+```html
+<script type="importmap">
+{
+    "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+    }
+}
+</script>
+```
+
+Start the local server (Python or Node.js) from the repository root and the
+browser will load the modules from `node_modules/` with no internet connection.
 
 ## Development
 
