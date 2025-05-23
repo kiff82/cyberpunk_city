@@ -58,11 +58,11 @@ browser will load the modules from `node_modules/` with no internet connection.
 
 ## Development
 
-All code is contained in `index.html` and the `src/` directory. No build step is required.
+Most code now lives in the `src/` directory with only a small loader in `index.html`. No build step is required.
 
 ## Configuration
 
-The `CONFIG` object in `index.html` exposes various options. To disable the neon flickering effect, set:
+The `CONFIG` object in `src/config.js` exposes various options. To disable the neon flickering effect, set:
 
 ```javascript
 CONFIG.misc.ENABLE_FLICKER = false;
@@ -83,7 +83,7 @@ A page reload applies the new setting.
 The neon billboard loads videos from `assets/megacorp_commercial`.
 Each billboard randomly selects one of those MP4 files when it is created and
 loops that clip independently. Replace the provided placeholders with your own
-clips if desired. Edit `commercialVideoFiles` in `index.html` when using
+clips if desired. Edit `commercialVideoFiles` in `src/main.js` when using
 different filenames.
 
 ## Custom player car
@@ -98,7 +98,7 @@ a simple placeholder car is used instead.
 
 Most static hosting services (such as GitHub Pages) do not expose a directory
 listing for `main_car/`. If `loadPlayerCar` cannot list the folder, specify the
-filenames manually in `CONFIG.PLAYER_CAR_FILES` inside `index.html`:
+filenames manually in `CONFIG.PLAYER_CAR_FILES` inside `src/config.js`:
 
 ```javascript
 CONFIG.PLAYER_CAR_FILES = ['custom_sleek_car.glb'];
@@ -107,7 +107,7 @@ CONFIG.PLAYER_CAR_FILES = ['custom_sleek_car.glb'];
 The files should still be placed in the `main_car` directory.
 
 If your model faces a different direction, adjust `CONFIG.PLAYER_CAR_ROTATION_Y`
-in `index.html`. The value is in radians and defaults to `Math.PI / 2` (90°).
+in `src/config.js`. The value is in radians and defaults to `Math.PI / 2` (90°).
 
 Imported meshes can appear too dark or shiny under the default lighting.
 Tweak the materials or modify the lighting setup provided in
